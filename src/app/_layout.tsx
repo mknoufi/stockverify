@@ -5,6 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { useEffect } from 'react';
+import { initializeSync, cleanupSync } from '@/lib/sync';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -15,6 +17,12 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  // Initialize sync system
+  useEffect(() => {
+    initializeSync();
+    return () => cleanupSync();
+  }, []);
+
   return (
     <ThemeProvider value={DarkTheme}>
       <Stack screenOptions={{ headerShown: false }}>
@@ -35,6 +43,7 @@ function RootLayoutNav() {
             animation: 'slide_from_bottom'
           }}
         />
+        <Stack.Screen name="sync-settings" />
         <Stack.Screen name="supervisor/verifications" />
         <Stack.Screen name="admin/users" />
         <Stack.Screen name="admin/audit-logs" />

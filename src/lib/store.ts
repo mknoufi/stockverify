@@ -478,25 +478,41 @@ export const useUserManagementStore = create<UserManagementState>()(
   )
 );
 
+// Helper function to get items (from sync store if available, otherwise mock)
+// Uses dynamic import to avoid circular dependency
+export function getItems(): Item[] {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { useSyncStore } = require('./sync');
+    const syncedItems = useSyncStore.getState().items;
+    return syncedItems.length > 0 ? syncedItems : mockItems;
+  } catch {
+    return mockItems;
+  }
+}
+
 // Helper function to search items with prefix routing
 export function searchItems(query: string): Item[] {
   if (query.length < 3) return [];
 
+  const items = getItems();
   const prefix = query.substring(0, 2);
   const lowerQuery = query.toLowerCase();
 
   // Prefix-based routing: 51/52/53 → Barcode search only, others → name search
   if (prefix === '51' || prefix === '52' || prefix === '53') {
-    return mockItems.filter((item) => item.barcode.includes(query));
+    return items.filter((item) => item.barcode.includes(query));
   } else {
-    return mockItems.filter((item) => item.name.toLowerCase().includes(lowerQuery));
+    return items.filter((item) => item.name.toLowerCase().includes(lowerQuery));
   }
 }
 
 export function getItemByBarcode(barcode: string): Item | undefined {
-  return mockItems.find((item) => item.barcode === barcode);
+  const items = getItems();
+  return items.find((item) => item.barcode === barcode);
 }
 
 export function getItemById(id: string): Item | undefined {
-  return mockItems.find((item) => item.id === id);
+  const items = getItems();
+  return items.find((item) => item.id === id);
 }

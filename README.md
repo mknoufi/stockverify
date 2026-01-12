@@ -100,6 +100,48 @@ A professional stock verification and inventory audit mobile app built with Expo
 - Accuracy metrics
 - Location-based statistics
 
+## Database Sync Configuration
+
+The app syncs with a local SQL database via REST API. Configure your database endpoint:
+
+1. Go to the **ENV tab** in Vibecode
+2. Add: `EXPO_PUBLIC_API_BASE_URL=http://YOUR_SERVER_IP:PORT/api`
+3. Example: `EXPO_PUBLIC_API_BASE_URL=http://192.168.1.100:3000/api`
+
+### Expected API Endpoints
+
+Your backend should provide these endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/items` | GET | Get all items |
+| `/items/:id` | GET | Get single item |
+| `/items/search?q=` | GET | Search items |
+| `/items/barcode/:code` | GET | Get by barcode |
+| `/users` | GET | Get all users |
+| `/auth/login` | POST | Authenticate user |
+| `/sessions` | GET/POST | List/create sessions |
+| `/sessions/:id` | PATCH | Update session |
+| `/entries` | GET/POST | List/create entries |
+| `/entries/:id` | PATCH | Update entry |
+| `/sync/status` | GET | Get sync status |
+| `/sync/upload` | POST | Upload offline changes |
+| `/sync/download?since=` | GET | Download changes since timestamp |
+
+### Sync Settings
+
+Access sync settings from the dashboard or when offline. Configure:
+- **Auto Sync**: Enable/disable automatic sync
+- **Sync Interval**: 1 min, 5 min, 15 min, 30 min, or 1 hour
+- **Manual Sync**: Force sync anytime
+
+### Offline Support
+
+- App works fully offline with local storage
+- Changes are queued and synced when connection restored
+- Visual indicators show sync status and pending changes
+
 ## Tech Stack
 - Expo SDK 53
 - React Native 0.76.7
