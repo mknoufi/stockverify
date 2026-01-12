@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { mockItems, useSessionStore } from '@/lib/store';
 import type { ItemCondition, DateEntryType, BundleItem, DamageCategory, CountedEntry, SerialStatus, SerialEntry, DamageEntry, BatchInfo, BoxCount } from '@/lib/types';
 import { cn } from '@/lib/cn';
@@ -73,10 +73,20 @@ const SERIAL_STATUSES: { value: SerialStatus; label: string; color: string }[] =
 
 export default function EntryFormScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { itemId, barcode } = useLocalSearchParams<{ itemId: string; barcode: string }>();
   const currentSession = useSessionStore((s) => s.currentSession);
   const checkDuplicateEntry = useSessionStore((s) => s.checkDuplicateEntry);
   const getItemEntriesAcrossSessions = useSessionStore((s) => s.getItemEntriesAcrossSessions);
+
+  // Safe back navigation that falls back to dashboard if no history
+  const handleGoBack = () => {
+    if (navigation.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/dashboard');
+    }
+  };
 
   const item = mockItems.find((i) => i.id === itemId);
   const variant = item?.variants?.find((v) => v.barcode === barcode);
@@ -431,7 +441,7 @@ export default function EntryFormScreen() {
                 {/* Header */}
                 <View className="flex-row items-center mb-6">
                   <Pressable
-                    onPress={() => router.back()}
+                    onPress={handleGoBack}
                     className="w-10 h-10 rounded-full bg-white/10 items-center justify-center"
                   >
                     <ArrowLeft size={20} color="#fff" />
@@ -953,7 +963,7 @@ export default function EntryFormScreen() {
                 <Text className="text-white font-semibold">Add as Different Location</Text>
               </Pressable>
               <Pressable
-                onPress={() => router.back()}
+                onPress={handleGoBack}
                 className="bg-slate-700 rounded-xl py-3 items-center active:opacity-80"
               >
                 <Text className="text-white font-semibold">Cancel</Text>
