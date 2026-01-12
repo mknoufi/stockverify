@@ -44,6 +44,7 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen name="sync-settings" />
+        <Stack.Screen name="checkout" />
         <Stack.Screen name="supervisor/verifications" />
         <Stack.Screen name="admin/users" />
         <Stack.Screen name="admin/audit-logs" />

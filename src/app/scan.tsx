@@ -17,6 +17,7 @@ import {
   X,
   Info,
   AlertCircle,
+  ClipboardCheck,
 } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
@@ -213,7 +214,7 @@ export default function ScanScreen() {
             </Animated.View>
 
             {/* Scan Button */}
-            <Animated.View entering={FadeInDown.duration(400).delay(100)} className="mb-6">
+            <Animated.View entering={FadeInDown.duration(400).delay(100)} className="mb-4">
               <Pressable
                 onPress={openScanner}
                 className="bg-blue-500 rounded-2xl py-4 flex-row items-center justify-center active:opacity-80"
@@ -222,6 +223,27 @@ export default function ScanScreen() {
                 <Text className="text-white font-bold text-lg ml-2">Scan Barcode</Text>
               </Pressable>
             </Animated.View>
+
+            {/* Checkout Button */}
+            {currentSession && (currentSession.totalScanned ?? 0) > 0 && (
+              <Animated.View entering={FadeInDown.duration(400).delay(150)} className="mb-6">
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push({
+                      pathname: '/checkout',
+                      params: { sessionId: currentSession.id },
+                    });
+                  }}
+                  className="bg-green-500 rounded-2xl py-4 flex-row items-center justify-center active:opacity-80"
+                >
+                  <ClipboardCheck size={24} color="#fff" />
+                  <Text className="text-white font-bold text-lg ml-2">
+                    Checkout ({currentSession.totalScanned} items)
+                  </Text>
+                </Pressable>
+              </Animated.View>
+            )}
 
             {/* Search Results */}
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>

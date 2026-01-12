@@ -77,6 +77,20 @@ A professional stock verification and inventory audit mobile app built with Expo
 - Batch approve/reject all entries
 - Re-count notification to assigned staff
 
+### Session Checkout
+- Accuracy score display (color-coded)
+- Total items counted summary
+- Variance breakdown:
+  - Short items count and value
+  - Over items count and value
+  - Net variance calculation
+- Detailed variance list with item-level info
+- Share report via native share sheet
+- Role-based actions:
+  - Staff: Submit for Verification
+  - Supervisor/Admin: Complete Session
+- Continue counting option
+
 ### Offline Support
 - Offline banner on dashboard
 - Local data storage with Zustand + AsyncStorage
