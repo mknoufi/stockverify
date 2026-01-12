@@ -178,6 +178,7 @@ export default function EntryFormScreen() {
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [currentWeight, setCurrentWeight] = useState('');
   const [currentWeightRemarks, setCurrentWeightRemarks] = useState('');
+  const [currentWeightPhoto, setCurrentWeightPhoto] = useState<string | undefined>(undefined);
   const weightUnit = (item?.uom?.toLowerCase() as 'kg' | 'g' | 'lb') || 'kg';
   const totalWeight = weightEntries.reduce((sum, w) => sum + w.weight, 0);
   const variance = countedQty - systemStock;
@@ -386,6 +387,7 @@ export default function EntryFormScreen() {
         unit: weightUnit,
         remarks: currentWeightRemarks || undefined,
         timestamp: new Date().toISOString(),
+        photo: currentWeightPhoto,
       };
       setWeightEntries([...weightEntries, newEntry]);
 
@@ -396,6 +398,7 @@ export default function EntryFormScreen() {
       // Reset modal state
       setCurrentWeight('');
       setCurrentWeightRemarks('');
+      setCurrentWeightPhoto(undefined);
       setShowWeightModal(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
@@ -407,6 +410,45 @@ export default function EntryFormScreen() {
     // Update counted qty
     const newTotal = totalWeight - removed.weight;
     setCountedQty(parseFloat(Math.max(0, newTotal).toFixed(2)));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  // Weight entry photo handlers
+  const handleTakeWeightPhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission Required', 'Camera permission is needed to take photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setCurrentWeightPhoto(result.assets[0].uri);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handlePickWeightPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setCurrentWeightPhoto(result.assets[0].uri);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleRemoveWeightPhoto = () => {
+    setCurrentWeightPhoto(undefined);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -618,11 +660,19 @@ export default function EntryFormScreen() {
                       <View className="mb-3 space-y-2">
                         {weightEntries.map((entry, index) => (
                           <View key={entry.id} className="bg-emerald-500/10 rounded-xl p-3 flex-row items-center justify-between">
+                            {entry.photo && (
+                              <Image source={{ uri: entry.photo }} className="w-12 h-12 rounded-lg mr-3" />
+                            )}
                             <View className="flex-1">
                               <View className="flex-row items-center">
                                 <Text className="text-white font-medium">
                                   #{index + 1}: {entry.weight.toFixed(2)} {entry.unit}
                                 </Text>
+                                {!entry.photo && (
+                                  <View className="bg-amber-500/20 px-2 py-0.5 rounded-full ml-2">
+                                    <Text className="text-amber-400 text-xs">No photo</Text>
+                                  </View>
+                                )}
                               </View>
                               {entry.remarks && (
                                 <Text className="text-slate-400 text-xs mt-1">{entry.remarks}</Text>
@@ -1531,15 +1581,57 @@ export default function EntryFormScreen() {
                 className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
               />
 
+              {/* Photo Proof Section */}
+              <Text className="text-slate-400 text-sm mb-2">Photo Proof *</Text>
+              {currentWeightPhoto ? (
+                <View className="mb-4">
+                  <View className="relative">
+                    <Image source={{ uri: currentWeightPhoto }} className="w-full h-40 rounded-xl" />
+                    <Pressable
+                      onPress={handleRemoveWeightPhoto}
+                      className="absolute top-2 right-2 w-8 h-8 bg-red-500 rounded-full items-center justify-center"
+                    >
+                      <X size={18} color="#fff" />
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <View className="flex-row gap-2 mb-4">
+                  <Pressable
+                    onPress={handleTakeWeightPhoto}
+                    className="flex-1 bg-emerald-500/20 border border-emerald-500/30 rounded-xl py-3 flex-row items-center justify-center active:opacity-80"
+                  >
+                    <Camera size={18} color="#10B981" />
+                    <Text className="text-emerald-400 font-medium ml-2">Take Photo</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handlePickWeightPhoto}
+                    className="flex-1 bg-slate-700 rounded-xl py-3 flex-row items-center justify-center active:opacity-80"
+                  >
+                    <ImageIcon size={18} color="#fff" />
+                    <Text className="text-white font-medium ml-2">Gallery</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {!currentWeightPhoto && (
+                <View className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4">
+                  <View className="flex-row items-center">
+                    <AlertTriangle size={16} color="#F59E0B" />
+                    <Text className="text-amber-400 text-sm ml-2">Photo proof is required for each weight entry</Text>
+                  </View>
+                </View>
+              )}
+
               <Pressable
                 onPress={() => { Keyboard.dismiss(); handleAddWeightEntry(); }}
-                disabled={!currentWeight || parseFloat(currentWeight) <= 0}
+                disabled={!currentWeight || parseFloat(currentWeight) <= 0 || !currentWeightPhoto}
                 className={cn(
                   'rounded-xl py-4 items-center',
-                  currentWeight && parseFloat(currentWeight) > 0 ? 'bg-emerald-500 active:opacity-80' : 'bg-slate-700'
+                  currentWeight && parseFloat(currentWeight) > 0 && currentWeightPhoto ? 'bg-emerald-500 active:opacity-80' : 'bg-slate-700'
                 )}
               >
-                <Text className={currentWeight && parseFloat(currentWeight) > 0 ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
+                <Text className={currentWeight && parseFloat(currentWeight) > 0 && currentWeightPhoto ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
                   Add Weight Entry
                 </Text>
               </Pressable>

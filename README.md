@@ -74,6 +74,12 @@ A professional stock verification and inventory audit mobile app built with Expo
 - Serial number entry for serialized items
 - Bundle item support
 - Remarks/notes
+- **Weight Entry (for kg/g/lb items):**
+  - Multiple weight entries per item (single scale scenario)
+  - Photo proof required for each weight measurement
+  - Auto-calculation of total weight
+  - Remarks per weight entry
+  - Timestamp tracking
 
 ### Confirmation Flow
 - Review all entered data before submission

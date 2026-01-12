@@ -186,4 +186,5 @@ export interface WeightEntry {
   unit: 'kg' | 'g' | 'lb';
   remarks?: string;
   timestamp: string;
+  photo?: string; // Photo proof for each weight entry
 }
