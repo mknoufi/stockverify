@@ -1,0 +1,24 @@
+# FastAPI Backend for Stock Verify
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-dotenv==1.0.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# SQL Server
+pyodbc==5.0.1
+pymssql==2.2.11
+
+# MongoDB (for sessions/counts)
+motor==3.3.2
+pymongo==4.6.1
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# CORS
+python-multipart==0.0.6
+
+# Date handling
+python-dateutil==2.8.2

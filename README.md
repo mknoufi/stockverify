@@ -133,21 +133,61 @@ A professional stock verification and inventory audit mobile app built with Expo
 
 ## Database Sync Configuration
 
-The app syncs with the STOCK_VERIFY backend which connects to SQL Server for ERP data.
+The app syncs with the backend which connects to SQL Server for ERP data.
 
-### Backend Setup
+### Backend Setup (Included in /backend folder)
 
-The backend repository is available at: https://github.com/mknoufi/STOCK_VERIFY_ui
+The backend is included in this project under the `/backend` folder.
 
-1. Clone and run the backend (runs on port 8001)
-2. Configure SQL Server connection in backend `config.py`
-3. The backend uses MongoDB for session/count data storage
+#### Windows Setup:
+```batch
+cd backend
+setup.bat
+```
+
+#### Linux/Mac Setup:
+```bash
+cd backend
+chmod +x setup.sh
+./setup.sh
+```
+
+#### Manual Setup:
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env with your SQL Server credentials
+python main.py
+```
+
+### Configure SQL Server Connection
+
+Edit `backend/.env`:
+```env
+SQL_SERVER_HOST=localhost
+SQL_SERVER_PORT=1433
+SQL_SERVER_DATABASE=YourERPDatabase
+SQL_SERVER_USER=sa
+SQL_SERVER_PASSWORD=YourPassword123
+```
+
+### Expose Backend with ngrok (for cloud app)
+
+1. Install ngrok: https://ngrok.com/download
+2. Start tunnel:
+```bash
+ngrok http 8001
+```
+3. Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
 
 ### App Configuration
 
 1. Go to the **ENV tab** in Vibecode
-2. Add: `EXPO_PUBLIC_API_BASE_URL=http://YOUR_SERVER_IP:8001/api`
-3. Example: `EXPO_PUBLIC_API_BASE_URL=http://192.168.1.109:8001/api`
+2. Add: `EXPO_PUBLIC_API_BASE_URL=https://YOUR_NGROK_URL/api`
+3. Example: `EXPO_PUBLIC_API_BASE_URL=https://abc123.ngrok-free.app/api`
 
 ### Backend API Endpoints
 
