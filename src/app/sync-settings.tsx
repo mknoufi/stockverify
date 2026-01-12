@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useSyncStore, startAutoSync, stopAutoSync } from '@/lib/sync';
+import { useSyncStore, startAutoSync, stopAutoSync, startNetworkListener, stopNetworkListener } from '@/lib/sync';
 import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -29,6 +29,12 @@ const SYNC_INTERVALS = [
 
 export default function SyncSettingsScreen() {
   const router = useRouter();
+
+  // Initialize network listener when screen opens
+  useEffect(() => {
+    startNetworkListener();
+    return () => stopNetworkListener();
+  }, []);
 
   const status = useSyncStore((s) => s.status);
   const lastSyncAt = useSyncStore((s) => s.lastSyncAt);
