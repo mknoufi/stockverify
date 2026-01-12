@@ -23,6 +23,8 @@ function RootLayoutNav() {
         <Stack.Screen name="dashboard" />
         <Stack.Screen name="create-session" />
         <Stack.Screen name="sessions" />
+        <Stack.Screen name="analytics" />
+        <Stack.Screen name="reports" />
         <Stack.Screen name="scan" />
         <Stack.Screen name="item-detail" />
         <Stack.Screen name="entry-form" />
