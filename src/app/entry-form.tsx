@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { mockItems, useSessionStore } from '@/lib/store';
-import type { ItemCondition, DateEntryType, BundleItem, DamageCategory, BatchInfo, DamageEntry } from '@/lib/types';
+import type { ItemCondition, DateEntryType, BundleItem, DamageCategory, BatchInfo, DamageEntry, BoxCount, SerialEntry, SerialStatus } from '@/lib/types';
 import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -37,6 +37,8 @@ import {
   Package,
   Image as ImageIcon,
   Trash2,
+  Box,
+  ScanLine,
 } from 'lucide-react-native';
 
 type DateType = DateEntryType;
@@ -60,6 +62,12 @@ const DAMAGE_CATEGORIES: { value: DamageCategory; label: string }[] = [
   { value: 'customer_return', label: 'Customer Return' },
   { value: 'storage', label: 'Storage Damage' },
   { value: 'unknown', label: 'Unknown' },
+];
+
+const SERIAL_STATUSES: { value: SerialStatus; label: string; color: string }[] = [
+  { value: 'active', label: 'Active', color: 'bg-green-500' },
+  { value: 'damaged', label: 'Damaged', color: 'bg-red-500' },
+  { value: 'missing', label: 'Missing', color: 'bg-amber-500' },
 ];
 
 export default function EntryFormScreen() {
@@ -134,8 +142,27 @@ export default function EntryFormScreen() {
   // Photo upload
   const [photos, setPhotos] = useState<string[]>([]);
 
+  // Box counting
+  const [enableBoxCounting, setEnableBoxCounting] = useState(false);
+  const [boxCounts, setBoxCounts] = useState<BoxCount[]>([]);
+  const [showBoxModal, setShowBoxModal] = useState(false);
+  const [currentBoxNo, setCurrentBoxNo] = useState('');
+  const [currentBoxQty, setCurrentBoxQty] = useState(1);
+  const [currentBoxPartial, setCurrentBoxPartial] = useState(false);
+  const [currentBoxRemarks, setCurrentBoxRemarks] = useState('');
+
+  // Enhanced serial number tracking
+  const [serialEntries, setSerialEntries] = useState<SerialEntry[]>([]);
+  const [showSerialModal, setShowSerialModal] = useState(false);
+  const [currentSerialNo, setCurrentSerialNo] = useState('');
+  const [currentSerialStatus, setCurrentSerialStatus] = useState<SerialStatus>('active');
+  const [currentSerialCondition, setCurrentSerialCondition] = useState<ItemCondition>('new');
+  const [currentSerialDamageCategory, setCurrentSerialDamageCategory] = useState<DamageCategory>('unknown');
+  const [currentSerialDamageRemarks, setCurrentSerialDamageRemarks] = useState('');
+
   const variance = countedQty - systemStock;
   const totalDamage = damageEntries.reduce((sum, d) => sum + d.quantity, 0);
+  const totalBoxQty = boxCounts.reduce((sum, b) => sum + b.quantityInBox, 0);
 
   const getVarianceColor = () => {
     if (variance < 0) return 'text-red-400';
@@ -255,6 +282,79 @@ export default function EntryFormScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // Box counting handlers
+  const handleAddBox = () => {
+    if (currentBoxNo.trim() && currentBoxQty > 0) {
+      const newBox: BoxCount = {
+        id: Date.now().toString(),
+        boxNo: currentBoxNo.trim(),
+        quantityInBox: currentBoxQty,
+        isPartial: currentBoxPartial,
+        remarks: currentBoxRemarks || undefined,
+      };
+      setBoxCounts([...boxCounts, newBox]);
+
+      // Auto-update counted qty based on box totals
+      const newTotal = totalBoxQty + currentBoxQty;
+      setCountedQty(newTotal);
+
+      // Reset modal state
+      setCurrentBoxNo('');
+      setCurrentBoxQty(1);
+      setCurrentBoxPartial(false);
+      setCurrentBoxRemarks('');
+      setShowBoxModal(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const handleRemoveBox = (index: number) => {
+    const removed = boxCounts[index];
+    setBoxCounts(boxCounts.filter((_, i) => i !== index));
+    // Update counted qty
+    setCountedQty(countedQty - removed.quantityInBox);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  // Enhanced serial number handlers
+  const handleAddSerialEntry = () => {
+    if (currentSerialNo.trim()) {
+      // Check for duplicate
+      if (serialEntries.some(s => s.serialNumber === currentSerialNo.trim())) {
+        Alert.alert('Duplicate', 'This serial number has already been added');
+        return;
+      }
+
+      const newSerial: SerialEntry = {
+        id: Date.now().toString(),
+        serialNumber: currentSerialNo.trim(),
+        status: currentSerialStatus,
+        condition: currentSerialCondition,
+        damageCategory: currentSerialStatus === 'damaged' ? currentSerialDamageCategory : undefined,
+        damageRemarks: currentSerialStatus === 'damaged' ? currentSerialDamageRemarks : undefined,
+      };
+      setSerialEntries([...serialEntries, newSerial]);
+
+      // Auto-update counted qty
+      setCountedQty(serialEntries.length + 1);
+
+      // Reset modal state
+      setCurrentSerialNo('');
+      setCurrentSerialStatus('active');
+      setCurrentSerialCondition('new');
+      setCurrentSerialDamageCategory('unknown');
+      setCurrentSerialDamageRemarks('');
+      setShowSerialModal(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const handleRemoveSerialEntry = (index: number) => {
+    setSerialEntries(serialEntries.filter((_, i) => i !== index));
+    setCountedQty(Math.max(0, countedQty - 1));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const handleUpdateExisting = () => {
     setShowDuplicateModal(false);
     // Pre-fill with existing data
@@ -300,6 +400,10 @@ export default function EntryFormScreen() {
         photos: JSON.stringify(photos),
         isMultiLocation: (otherLocationEntries.length > 0).toString(),
         previousEntryId: duplicateEntry?.id ?? '',
+        // New box counting and serial entries
+        boxCounts: JSON.stringify(boxCounts),
+        totalBoxes: boxCounts.length.toString(),
+        serialEntries: JSON.stringify(serialEntries),
       },
     });
   };
@@ -520,6 +624,79 @@ export default function EntryFormScreen() {
                   </Pressable>
                 </Animated.View>
 
+                {/* Box Counting */}
+                <Animated.View
+                  entering={FadeInDown.duration(400).delay(110)}
+                  className="bg-slate-800/50 rounded-2xl p-4 mb-4"
+                >
+                  <View className="flex-row items-center justify-between mb-3">
+                    <View className="flex-row items-center">
+                      <Box size={18} color="#06B6D4" />
+                      <Text className="text-slate-400 text-sm ml-2">Box Counting</Text>
+                    </View>
+                    <Pressable
+                      onPress={() => setEnableBoxCounting(!enableBoxCounting)}
+                      className={cn(
+                        'px-3 py-1 rounded-full',
+                        enableBoxCounting ? 'bg-cyan-500' : 'bg-slate-700'
+                      )}
+                    >
+                      <Text className={enableBoxCounting ? 'text-white text-sm' : 'text-slate-400 text-sm'}>
+                        {enableBoxCounting ? 'Enabled' : 'Disabled'}
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  {enableBoxCounting && (
+                    <>
+                      {/* Box summary */}
+                      {boxCounts.length > 0 && (
+                        <View className="bg-cyan-500/10 rounded-xl p-3 mb-3">
+                          <View className="flex-row justify-between">
+                            <Text className="text-cyan-400">Total Boxes: {boxCounts.length}</Text>
+                            <Text className="text-cyan-400 font-bold">Total Qty: {totalBoxQty}</Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Box list */}
+                      {boxCounts.length > 0 && (
+                        <View className="mb-3 space-y-2">
+                          {boxCounts.map((box, index) => (
+                            <View key={box.id} className="bg-cyan-500/10 rounded-xl p-3 flex-row items-center justify-between">
+                              <View>
+                                <View className="flex-row items-center">
+                                  <Text className="text-white font-medium">Box {box.boxNo}</Text>
+                                  {box.isPartial && (
+                                    <View className="bg-amber-500/20 px-2 py-0.5 rounded-full ml-2">
+                                      <Text className="text-amber-400 text-xs">Partial</Text>
+                                    </View>
+                                  )}
+                                </View>
+                                <Text className="text-cyan-400 text-sm">{box.quantityInBox} items</Text>
+                                {box.remarks && (
+                                  <Text className="text-slate-400 text-xs mt-1">{box.remarks}</Text>
+                                )}
+                              </View>
+                              <Pressable onPress={() => handleRemoveBox(index)}>
+                                <Trash2 size={18} color="#06B6D4" />
+                              </Pressable>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      <Pressable
+                        onPress={() => setShowBoxModal(true)}
+                        className="bg-cyan-500/20 border border-cyan-500/30 rounded-xl py-3 flex-row items-center justify-center active:opacity-80"
+                      >
+                        <Plus size={18} color="#06B6D4" />
+                        <Text className="text-cyan-400 font-medium ml-2">Add Box</Text>
+                      </Pressable>
+                    </>
+                  )}
+                </Animated.View>
+
                 {/* Photo Upload */}
                 <Animated.View
                   entering={FadeInDown.duration(400).delay(125)}
@@ -636,52 +813,82 @@ export default function EntryFormScreen() {
                   />
                 </Animated.View>
 
-                {/* Serial Numbers (for serialized items) */}
+                {/* Serial Numbers (for serialized items) - Enhanced */}
                 {item.isSerialized && (
                   <Animated.View
                     entering={FadeInDown.duration(400).delay(200)}
                     className="bg-slate-800/50 rounded-2xl p-4 mb-4"
                   >
-                    <View className="flex-row items-center mb-3">
-                      <Hash size={18} color="#64748B" />
-                      <Text className="text-slate-400 text-sm ml-2">
-                        Serial Numbers ({serialNumbers.length}/{countedQty})
-                      </Text>
+                    <View className="flex-row items-center justify-between mb-3">
+                      <View className="flex-row items-center">
+                        <ScanLine size={18} color="#22C55E" />
+                        <Text className="text-slate-400 text-sm ml-2">
+                          Serial Numbers ({serialEntries.length}/{countedQty})
+                        </Text>
+                      </View>
+                      {serialEntries.length > 0 && (
+                        <View className="flex-row gap-1">
+                          <View className="bg-green-500/20 px-2 py-0.5 rounded-full">
+                            <Text className="text-green-400 text-xs">
+                              {serialEntries.filter(s => s.status === 'active').length} OK
+                            </Text>
+                          </View>
+                          {serialEntries.filter(s => s.status === 'damaged').length > 0 && (
+                            <View className="bg-red-500/20 px-2 py-0.5 rounded-full">
+                              <Text className="text-red-400 text-xs">
+                                {serialEntries.filter(s => s.status === 'damaged').length} DMG
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
                     </View>
-                    <View className="flex-row gap-2">
-                      <TextInput
-                        value={currentSerial}
-                        onChangeText={setCurrentSerial}
-                        placeholder="Enter or scan serial number"
-                        placeholderTextColor="#64748B"
-                        className="flex-1 bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700"
-                        onSubmitEditing={handleAddSerial}
-                      />
-                      <Pressable
-                        onPress={handleAddSerial}
-                        className="bg-blue-500 w-12 rounded-xl items-center justify-center active:opacity-80"
-                      >
-                        <Plus size={24} color="#fff" />
-                      </Pressable>
-                    </View>
-                    {serialNumbers.length > 0 && (
-                      <View className="mt-3 flex-row flex-wrap gap-2">
-                        {serialNumbers.map((serial) => (
-                          <View
-                            key={serial}
-                            className="bg-slate-700 px-3 py-2 rounded-lg flex-row items-center"
-                          >
-                            <Text className="text-white text-sm">{serial}</Text>
-                            <Pressable
-                              onPress={() => handleRemoveSerial(serial)}
-                              className="ml-2"
-                            >
-                              <X size={16} color="#EF4444" />
+
+                    {/* Serial entries list */}
+                    {serialEntries.length > 0 && (
+                      <View className="mb-3 space-y-2">
+                        {serialEntries.map((serial, index) => (
+                          <View key={serial.id} className={cn(
+                            'rounded-xl p-3 flex-row items-center justify-between',
+                            serial.status === 'active' ? 'bg-green-500/10' :
+                            serial.status === 'damaged' ? 'bg-red-500/10' : 'bg-amber-500/10'
+                          )}>
+                            <View className="flex-1">
+                              <View className="flex-row items-center">
+                                <Text className="text-white font-medium">{serial.serialNumber}</Text>
+                                <View className={cn(
+                                  'px-2 py-0.5 rounded-full ml-2',
+                                  serial.status === 'active' ? 'bg-green-500/20' :
+                                  serial.status === 'damaged' ? 'bg-red-500/20' : 'bg-amber-500/20'
+                                )}>
+                                  <Text className={cn(
+                                    'text-xs capitalize',
+                                    serial.status === 'active' ? 'text-green-400' :
+                                    serial.status === 'damaged' ? 'text-red-400' : 'text-amber-400'
+                                  )}>
+                                    {serial.status}
+                                  </Text>
+                                </View>
+                              </View>
+                              {serial.damageRemarks && (
+                                <Text className="text-slate-400 text-xs mt-1">{serial.damageRemarks}</Text>
+                              )}
+                            </View>
+                            <Pressable onPress={() => handleRemoveSerialEntry(index)}>
+                              <Trash2 size={18} color="#64748B" />
                             </Pressable>
                           </View>
                         ))}
                       </View>
                     )}
+
+                    <Pressable
+                      onPress={() => setShowSerialModal(true)}
+                      className="bg-green-500/20 border border-green-500/30 rounded-xl py-3 flex-row items-center justify-center active:opacity-80"
+                    >
+                      <Plus size={18} color="#22C55E" />
+                      <Text className="text-green-400 font-medium ml-2">Add Serial Number</Text>
+                    </Pressable>
                   </Animated.View>
                 )}
 
@@ -903,6 +1110,183 @@ export default function EntryFormScreen() {
             >
               <Text className={currentBatchNo.trim() ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
                 Add Batch
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Box Modal */}
+      <Modal visible={showBoxModal} transparent animationType="slide">
+        <View className="flex-1 bg-black/70 justify-end">
+          <View className="bg-slate-800 rounded-t-3xl p-6">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-white font-bold text-lg">Add Box</Text>
+              <Pressable onPress={() => setShowBoxModal(false)}>
+                <X size={24} color="#64748B" />
+              </Pressable>
+            </View>
+
+            <Text className="text-slate-400 text-sm mb-2">Box Number *</Text>
+            <TextInput
+              value={currentBoxNo}
+              onChangeText={setCurrentBoxNo}
+              placeholder="Enter box number (e.g., B001, Box-1)"
+              placeholderTextColor="#64748B"
+              className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+            />
+
+            <Text className="text-slate-400 text-sm mb-2">Items in Box</Text>
+            <View className="flex-row items-center mb-4">
+              <Pressable
+                onPress={() => currentBoxQty > 1 && setCurrentBoxQty(currentBoxQty - 1)}
+                className="w-12 h-12 rounded-xl bg-slate-700 items-center justify-center"
+              >
+                <Minus size={20} color="#fff" />
+              </Pressable>
+              <TextInput
+                value={currentBoxQty.toString()}
+                onChangeText={(v) => setCurrentBoxQty(parseInt(v) || 1)}
+                keyboardType="number-pad"
+                className="flex-1 text-center text-white text-2xl font-bold mx-4"
+              />
+              <Pressable
+                onPress={() => setCurrentBoxQty(currentBoxQty + 1)}
+                className="w-12 h-12 rounded-xl bg-cyan-500 items-center justify-center"
+              >
+                <Plus size={20} color="#fff" />
+              </Pressable>
+            </View>
+
+            <Pressable
+              onPress={() => setCurrentBoxPartial(!currentBoxPartial)}
+              className="flex-row items-center mb-4"
+            >
+              <View className={cn(
+                'w-6 h-6 rounded-md border-2 items-center justify-center mr-3',
+                currentBoxPartial ? 'bg-amber-500 border-amber-500' : 'border-slate-600'
+              )}>
+                {currentBoxPartial && <Text className="text-white text-xs">✓</Text>}
+              </View>
+              <Text className="text-slate-300">Partial box (not full)</Text>
+            </Pressable>
+
+            <Text className="text-slate-400 text-sm mb-2">Remarks (Optional)</Text>
+            <TextInput
+              value={currentBoxRemarks}
+              onChangeText={setCurrentBoxRemarks}
+              placeholder="Any notes about this box..."
+              placeholderTextColor="#64748B"
+              className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+            />
+
+            <Pressable
+              onPress={handleAddBox}
+              disabled={!currentBoxNo.trim()}
+              className={cn(
+                'rounded-xl py-4 items-center',
+                currentBoxNo.trim() ? 'bg-cyan-500 active:opacity-80' : 'bg-slate-700'
+              )}
+            >
+              <Text className={currentBoxNo.trim() ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
+                Add Box
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Serial Number Modal */}
+      <Modal visible={showSerialModal} transparent animationType="slide">
+        <View className="flex-1 bg-black/70 justify-end">
+          <View className="bg-slate-800 rounded-t-3xl p-6">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-white font-bold text-lg">Add Serial Number</Text>
+              <Pressable onPress={() => setShowSerialModal(false)}>
+                <X size={24} color="#64748B" />
+              </Pressable>
+            </View>
+
+            <Text className="text-slate-400 text-sm mb-2">Serial Number *</Text>
+            <TextInput
+              value={currentSerialNo}
+              onChangeText={setCurrentSerialNo}
+              placeholder="Enter or scan serial number"
+              placeholderTextColor="#64748B"
+              className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+              autoCapitalize="characters"
+            />
+
+            <Text className="text-slate-400 text-sm mb-2">Status</Text>
+            <View className="flex-row gap-2 mb-4">
+              {SERIAL_STATUSES.map((status) => (
+                <Pressable
+                  key={status.value}
+                  onPress={() => setCurrentSerialStatus(status.value)}
+                  className={cn(
+                    'flex-1 py-3 rounded-xl items-center border-2',
+                    currentSerialStatus === status.value
+                      ? `${status.color} border-transparent`
+                      : 'bg-slate-700/50 border-slate-600'
+                  )}
+                >
+                  <Text
+                    className={cn(
+                      'font-semibold',
+                      currentSerialStatus === status.value ? 'text-white' : 'text-slate-400'
+                    )}
+                  >
+                    {status.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {currentSerialStatus === 'damaged' && (
+              <>
+                <Text className="text-slate-400 text-sm mb-2">Damage Category</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
+                  <View className="flex-row gap-2">
+                    {DAMAGE_CATEGORIES.map((cat) => (
+                      <Pressable
+                        key={cat.value}
+                        onPress={() => setCurrentSerialDamageCategory(cat.value)}
+                        className={cn(
+                          'px-4 py-2 rounded-xl',
+                          currentSerialDamageCategory === cat.value ? 'bg-red-500' : 'bg-slate-700'
+                        )}
+                      >
+                        <Text className={currentSerialDamageCategory === cat.value ? 'text-white' : 'text-slate-400'}>
+                          {cat.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                <Text className="text-slate-400 text-sm mb-2">Damage Remarks</Text>
+                <TextInput
+                  value={currentSerialDamageRemarks}
+                  onChangeText={setCurrentSerialDamageRemarks}
+                  placeholder="Describe the damage..."
+                  placeholderTextColor="#64748B"
+                  multiline
+                  numberOfLines={2}
+                  className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+                />
+              </>
+            )}
+
+            <Pressable
+              onPress={handleAddSerialEntry}
+              disabled={!currentSerialNo.trim()}
+              className={cn(
+                'rounded-xl py-4 items-center',
+                currentSerialNo.trim() ? 'bg-green-500 active:opacity-80' : 'bg-slate-700'
+              )}
+            >
+              <Text className={currentSerialNo.trim() ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
+                Add Serial Number
               </Text>
             </Pressable>
           </View>

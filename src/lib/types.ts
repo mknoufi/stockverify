@@ -96,6 +96,26 @@ export interface DamageEntry {
   photos?: string[];
 }
 
+// Box counting for items packed in boxes
+export interface BoxCount {
+  id: string;
+  boxNo: string; // Box number/identifier
+  quantityInBox: number; // Items count in this box
+  isPartial?: boolean; // If box is not full
+  remarks?: string;
+}
+
+// Serial number entry with status
+export interface SerialEntry {
+  id: string;
+  serialNumber: string;
+  status: SerialStatus;
+  condition?: ItemCondition;
+  damageCategory?: DamageCategory;
+  damageRemarks?: string;
+  photo?: string;
+}
+
 export interface CountedEntry {
   id: string;
   sessionId: string;
@@ -126,6 +146,11 @@ export interface CountedEntry {
   damageEntries?: DamageEntry[]; // Multiple damage entries with categories
   isMultiLocation?: boolean; // Flag if item exists in multiple locations
   previousEntryId?: string; // Link to previous entry if updating
+  // Box counting
+  boxCounts?: BoxCount[]; // Multiple boxes with counts
+  totalBoxes?: number; // Total number of boxes
+  // Enhanced serial tracking
+  serialEntries?: SerialEntry[]; // Detailed serial number entries
   createdAt: string;
   updatedAt?: string;
   status: EntryStatus;

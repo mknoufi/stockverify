@@ -83,6 +83,19 @@ A professional stock verification and inventory audit mobile app built with Expo
   - Remarks/description
   - Photo evidence
 - **Photo Upload**: Capture item photos via camera or gallery
+- **Box Counting**: For items packed in boxes
+  - Enable/disable box counting mode
+  - Add multiple boxes with box number
+  - Count items per box
+  - Mark partial boxes
+  - Auto-calculate total quantity from boxes
+  - Remarks per box
+- **Enhanced Serial Number Tracking**: For serialized items
+  - Add serial numbers with status (Active, Damaged, Missing)
+  - Track condition per serial
+  - Damage category and remarks for damaged serials
+  - Auto-update counted quantity from serial entries
+  - Visual status indicators (green=OK, red=Damaged, amber=Missing)
 
 ### Verification Workflow (Supervisor/Admin)
 - Session-level review with all entries
