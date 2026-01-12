@@ -10,6 +10,7 @@ import {
   Modal,
   Image,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -964,334 +965,397 @@ export default function EntryFormScreen() {
 
       {/* Damage Entry Modal */}
       <Modal visible={showDamageModal} transparent animationType="slide">
-        <View className="flex-1 bg-black/70 justify-end">
-          <View className="bg-slate-800 rounded-t-3xl p-6">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-white font-bold text-lg">Add Damage Entry</Text>
-              <Pressable onPress={() => setShowDamageModal(false)}>
-                <X size={24} color="#64748B" />
-              </Pressable>
-            </View>
-
-            <Text className="text-slate-400 text-sm mb-2">Quantity</Text>
-            <View className="flex-row items-center mb-4">
-              <Pressable
-                onPress={() => currentDamageQty > 1 && setCurrentDamageQty(currentDamageQty - 1)}
-                className="w-12 h-12 rounded-xl bg-slate-700 items-center justify-center"
-              >
-                <Minus size={20} color="#fff" />
-              </Pressable>
-              <TextInput
-                value={currentDamageQty.toString()}
-                onChangeText={(v) => setCurrentDamageQty(parseInt(v) || 1)}
-                keyboardType="number-pad"
-                className="flex-1 text-center text-white text-2xl font-bold mx-4"
-              />
-              <Pressable
-                onPress={() => setCurrentDamageQty(currentDamageQty + 1)}
-                className="w-12 h-12 rounded-xl bg-red-500 items-center justify-center"
-              >
-                <Plus size={20} color="#fff" />
-              </Pressable>
-            </View>
-
-            <Text className="text-slate-400 text-sm mb-2">Damage Category</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
-              <View className="flex-row gap-2">
-                {DAMAGE_CATEGORIES.map((cat) => (
-                  <Pressable
-                    key={cat.value}
-                    onPress={() => setCurrentDamageCategory(cat.value)}
-                    className={cn(
-                      'px-4 py-2 rounded-xl',
-                      currentDamageCategory === cat.value ? 'bg-red-500' : 'bg-slate-700'
-                    )}
-                  >
-                    <Text className={currentDamageCategory === cat.value ? 'text-white' : 'text-slate-400'}>
-                      {cat.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-
-            <Text className="text-slate-400 text-sm mb-2">Remarks</Text>
-            <TextInput
-              value={currentDamageRemarks}
-              onChangeText={setCurrentDamageRemarks}
-              placeholder="Describe the damage..."
-              placeholderTextColor="#64748B"
-              multiline
-              numberOfLines={2}
-              className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
-            />
-
+        <Pressable
+          className="flex-1 bg-black/70 justify-end"
+          onPress={Keyboard.dismiss}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
             <Pressable
-              onPress={handleAddDamageEntry}
-              className="bg-red-500 rounded-xl py-4 items-center active:opacity-80"
+              className="bg-slate-800 rounded-t-3xl p-6"
+              onPress={(e) => e.stopPropagation()}
             >
-              <Text className="text-white font-bold">Add Damage Entry</Text>
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-white font-bold text-lg">Add Damage Entry</Text>
+                <Pressable onPress={() => { Keyboard.dismiss(); setShowDamageModal(false); }}>
+                  <X size={24} color="#64748B" />
+                </Pressable>
+              </View>
+
+              <Text className="text-slate-400 text-sm mb-2">Quantity</Text>
+              <View className="flex-row items-center mb-4">
+                <Pressable
+                  onPress={() => currentDamageQty > 1 && setCurrentDamageQty(currentDamageQty - 1)}
+                  className="w-12 h-12 rounded-xl bg-slate-700 items-center justify-center"
+                >
+                  <Minus size={20} color="#fff" />
+                </Pressable>
+                <TextInput
+                  value={currentDamageQty.toString()}
+                  onChangeText={(v) => setCurrentDamageQty(parseInt(v) || 1)}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  blurOnSubmit
+                  className="flex-1 text-center text-white text-2xl font-bold mx-4"
+                />
+                <Pressable
+                  onPress={() => setCurrentDamageQty(currentDamageQty + 1)}
+                  className="w-12 h-12 rounded-xl bg-red-500 items-center justify-center"
+                >
+                  <Plus size={20} color="#fff" />
+                </Pressable>
+              </View>
+
+              <Text className="text-slate-400 text-sm mb-2">Damage Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
+                <View className="flex-row gap-2">
+                  {DAMAGE_CATEGORIES.map((cat) => (
+                    <Pressable
+                      key={cat.value}
+                      onPress={() => { Keyboard.dismiss(); setCurrentDamageCategory(cat.value); }}
+                      className={cn(
+                        'px-4 py-2 rounded-xl',
+                        currentDamageCategory === cat.value ? 'bg-red-500' : 'bg-slate-700'
+                      )}
+                    >
+                      <Text className={currentDamageCategory === cat.value ? 'text-white' : 'text-slate-400'}>
+                        {cat.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+
+              <Text className="text-slate-400 text-sm mb-2">Remarks</Text>
+              <TextInput
+                value={currentDamageRemarks}
+                onChangeText={setCurrentDamageRemarks}
+                placeholder="Describe the damage..."
+                placeholderTextColor="#64748B"
+                multiline
+                numberOfLines={2}
+                returnKeyType="done"
+                blurOnSubmit
+                onSubmitEditing={Keyboard.dismiss}
+                className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+              />
+
+              <Pressable
+                onPress={() => { Keyboard.dismiss(); handleAddDamageEntry(); }}
+                className="bg-red-500 rounded-xl py-4 items-center active:opacity-80"
+              >
+                <Text className="text-white font-bold">Add Damage Entry</Text>
+              </Pressable>
             </Pressable>
-          </View>
-        </View>
+          </KeyboardAvoidingView>
+        </Pressable>
       </Modal>
 
       {/* Batch Modal */}
       <Modal visible={showBatchModal} transparent animationType="slide">
-        <View className="flex-1 bg-black/70 justify-end">
-          <View className="bg-slate-800 rounded-t-3xl p-6">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-white font-bold text-lg">Add Batch</Text>
-              <Pressable onPress={() => setShowBatchModal(false)}>
-                <X size={24} color="#64748B" />
-              </Pressable>
-            </View>
-
-            <Text className="text-slate-400 text-sm mb-2">Batch Number *</Text>
-            <TextInput
-              value={currentBatchNo}
-              onChangeText={setCurrentBatchNo}
-              placeholder="Enter batch number"
-              placeholderTextColor="#64748B"
-              className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
-            />
-
-            <Text className="text-slate-400 text-sm mb-2">Quantity</Text>
-            <View className="flex-row items-center mb-4">
-              <Pressable
-                onPress={() => currentBatchQty > 1 && setCurrentBatchQty(currentBatchQty - 1)}
-                className="w-12 h-12 rounded-xl bg-slate-700 items-center justify-center"
-              >
-                <Minus size={20} color="#fff" />
-              </Pressable>
-              <TextInput
-                value={currentBatchQty.toString()}
-                onChangeText={(v) => setCurrentBatchQty(parseInt(v) || 1)}
-                keyboardType="number-pad"
-                className="flex-1 text-center text-white text-2xl font-bold mx-4"
-              />
-              <Pressable
-                onPress={() => setCurrentBatchQty(currentBatchQty + 1)}
-                className="w-12 h-12 rounded-xl bg-purple-500 items-center justify-center"
-              >
-                <Plus size={20} color="#fff" />
-              </Pressable>
-            </View>
-
-            <View className="flex-row gap-3 mb-4">
-              <View className="flex-1">
-                <Text className="text-slate-400 text-sm mb-2">Mfg Date</Text>
-                <TextInput
-                  value={currentBatchMfg}
-                  onChangeText={setCurrentBatchMfg}
-                  placeholder="MM/YYYY"
-                  placeholderTextColor="#64748B"
-                  className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700"
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="text-slate-400 text-sm mb-2">Expiry Date</Text>
-                <TextInput
-                  value={currentBatchExpiry}
-                  onChangeText={setCurrentBatchExpiry}
-                  placeholder="MM/YYYY"
-                  placeholderTextColor="#64748B"
-                  className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700"
-                />
-              </View>
-            </View>
-
+        <Pressable
+          className="flex-1 bg-black/70 justify-end"
+          onPress={Keyboard.dismiss}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
             <Pressable
-              onPress={handleAddBatch}
-              disabled={!currentBatchNo.trim()}
-              className={cn(
-                'rounded-xl py-4 items-center',
-                currentBatchNo.trim() ? 'bg-purple-500 active:opacity-80' : 'bg-slate-700'
-              )}
+              className="bg-slate-800 rounded-t-3xl p-6"
+              onPress={(e) => e.stopPropagation()}
             >
-              <Text className={currentBatchNo.trim() ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
-                Add Batch
-              </Text>
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-white font-bold text-lg">Add Batch</Text>
+                <Pressable onPress={() => { Keyboard.dismiss(); setShowBatchModal(false); }}>
+                  <X size={24} color="#64748B" />
+                </Pressable>
+              </View>
+
+              <Text className="text-slate-400 text-sm mb-2">Batch Number *</Text>
+              <TextInput
+                value={currentBatchNo}
+                onChangeText={setCurrentBatchNo}
+                placeholder="Enter batch number"
+                placeholderTextColor="#64748B"
+                returnKeyType="next"
+                className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+              />
+
+              <Text className="text-slate-400 text-sm mb-2">Quantity</Text>
+              <View className="flex-row items-center mb-4">
+                <Pressable
+                  onPress={() => currentBatchQty > 1 && setCurrentBatchQty(currentBatchQty - 1)}
+                  className="w-12 h-12 rounded-xl bg-slate-700 items-center justify-center"
+                >
+                  <Minus size={20} color="#fff" />
+                </Pressable>
+                <TextInput
+                  value={currentBatchQty.toString()}
+                  onChangeText={(v) => setCurrentBatchQty(parseInt(v) || 1)}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  blurOnSubmit
+                  className="flex-1 text-center text-white text-2xl font-bold mx-4"
+                />
+                <Pressable
+                  onPress={() => setCurrentBatchQty(currentBatchQty + 1)}
+                  className="w-12 h-12 rounded-xl bg-purple-500 items-center justify-center"
+                >
+                  <Plus size={20} color="#fff" />
+                </Pressable>
+              </View>
+
+              <View className="flex-row gap-3 mb-4">
+                <View className="flex-1">
+                  <Text className="text-slate-400 text-sm mb-2">Mfg Date</Text>
+                  <TextInput
+                    value={currentBatchMfg}
+                    onChangeText={setCurrentBatchMfg}
+                    placeholder="MM/YYYY"
+                    placeholderTextColor="#64748B"
+                    returnKeyType="next"
+                    className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700"
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-slate-400 text-sm mb-2">Expiry Date</Text>
+                  <TextInput
+                    value={currentBatchExpiry}
+                    onChangeText={setCurrentBatchExpiry}
+                    placeholder="MM/YYYY"
+                    placeholderTextColor="#64748B"
+                    returnKeyType="done"
+                    blurOnSubmit
+                    onSubmitEditing={Keyboard.dismiss}
+                    className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700"
+                  />
+                </View>
+              </View>
+
+              <Pressable
+                onPress={() => { Keyboard.dismiss(); handleAddBatch(); }}
+                disabled={!currentBatchNo.trim()}
+                className={cn(
+                  'rounded-xl py-4 items-center',
+                  currentBatchNo.trim() ? 'bg-purple-500 active:opacity-80' : 'bg-slate-700'
+                )}
+              >
+                <Text className={currentBatchNo.trim() ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
+                  Add Batch
+                </Text>
+              </Pressable>
             </Pressable>
-          </View>
-        </View>
+          </KeyboardAvoidingView>
+        </Pressable>
       </Modal>
 
       {/* Box Modal */}
       <Modal visible={showBoxModal} transparent animationType="slide">
-        <View className="flex-1 bg-black/70 justify-end">
-          <View className="bg-slate-800 rounded-t-3xl p-6">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-white font-bold text-lg">Add Box</Text>
-              <Pressable onPress={() => setShowBoxModal(false)}>
-                <X size={24} color="#64748B" />
-              </Pressable>
-            </View>
-
-            <Text className="text-slate-400 text-sm mb-2">Box Number *</Text>
-            <TextInput
-              value={currentBoxNo}
-              onChangeText={setCurrentBoxNo}
-              placeholder="Enter box number (e.g., B001, Box-1)"
-              placeholderTextColor="#64748B"
-              className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
-            />
-
-            <Text className="text-slate-400 text-sm mb-2">Items in Box</Text>
-            <View className="flex-row items-center mb-4">
-              <Pressable
-                onPress={() => currentBoxQty > 1 && setCurrentBoxQty(currentBoxQty - 1)}
-                className="w-12 h-12 rounded-xl bg-slate-700 items-center justify-center"
-              >
-                <Minus size={20} color="#fff" />
-              </Pressable>
-              <TextInput
-                value={currentBoxQty.toString()}
-                onChangeText={(v) => setCurrentBoxQty(parseInt(v) || 1)}
-                keyboardType="number-pad"
-                className="flex-1 text-center text-white text-2xl font-bold mx-4"
-              />
-              <Pressable
-                onPress={() => setCurrentBoxQty(currentBoxQty + 1)}
-                className="w-12 h-12 rounded-xl bg-cyan-500 items-center justify-center"
-              >
-                <Plus size={20} color="#fff" />
-              </Pressable>
-            </View>
-
+        <Pressable
+          className="flex-1 bg-black/70 justify-end"
+          onPress={Keyboard.dismiss}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
             <Pressable
-              onPress={() => setCurrentBoxPartial(!currentBoxPartial)}
-              className="flex-row items-center mb-4"
+              className="bg-slate-800 rounded-t-3xl p-6"
+              onPress={(e) => e.stopPropagation()}
             >
-              <View className={cn(
-                'w-6 h-6 rounded-md border-2 items-center justify-center mr-3',
-                currentBoxPartial ? 'bg-amber-500 border-amber-500' : 'border-slate-600'
-              )}>
-                {currentBoxPartial && <Text className="text-white text-xs">✓</Text>}
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-white font-bold text-lg">Add Box</Text>
+                <Pressable onPress={() => { Keyboard.dismiss(); setShowBoxModal(false); }}>
+                  <X size={24} color="#64748B" />
+                </Pressable>
               </View>
-              <Text className="text-slate-300">Partial box (not full)</Text>
-            </Pressable>
 
-            <Text className="text-slate-400 text-sm mb-2">Remarks (Optional)</Text>
-            <TextInput
-              value={currentBoxRemarks}
-              onChangeText={setCurrentBoxRemarks}
-              placeholder="Any notes about this box..."
-              placeholderTextColor="#64748B"
-              className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
-            />
+              <Text className="text-slate-400 text-sm mb-2">Box Number *</Text>
+              <TextInput
+                value={currentBoxNo}
+                onChangeText={setCurrentBoxNo}
+                placeholder="Enter box number (e.g., B001, Box-1)"
+                placeholderTextColor="#64748B"
+                returnKeyType="next"
+                className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+              />
 
-            <Pressable
-              onPress={handleAddBox}
-              disabled={!currentBoxNo.trim()}
-              className={cn(
-                'rounded-xl py-4 items-center',
-                currentBoxNo.trim() ? 'bg-cyan-500 active:opacity-80' : 'bg-slate-700'
-              )}
-            >
-              <Text className={currentBoxNo.trim() ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
-                Add Box
-              </Text>
+              <Text className="text-slate-400 text-sm mb-2">Items in Box</Text>
+              <View className="flex-row items-center mb-4">
+                <Pressable
+                  onPress={() => currentBoxQty > 1 && setCurrentBoxQty(currentBoxQty - 1)}
+                  className="w-12 h-12 rounded-xl bg-slate-700 items-center justify-center"
+                >
+                  <Minus size={20} color="#fff" />
+                </Pressable>
+                <TextInput
+                  value={currentBoxQty.toString()}
+                  onChangeText={(v) => setCurrentBoxQty(parseInt(v) || 1)}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  blurOnSubmit
+                  className="flex-1 text-center text-white text-2xl font-bold mx-4"
+                />
+                <Pressable
+                  onPress={() => setCurrentBoxQty(currentBoxQty + 1)}
+                  className="w-12 h-12 rounded-xl bg-cyan-500 items-center justify-center"
+                >
+                  <Plus size={20} color="#fff" />
+                </Pressable>
+              </View>
+
+              <Pressable
+                onPress={() => setCurrentBoxPartial(!currentBoxPartial)}
+                className="flex-row items-center mb-4"
+              >
+                <View className={cn(
+                  'w-6 h-6 rounded-md border-2 items-center justify-center mr-3',
+                  currentBoxPartial ? 'bg-amber-500 border-amber-500' : 'border-slate-600'
+                )}>
+                  {currentBoxPartial && <Text className="text-white text-xs">✓</Text>}
+                </View>
+                <Text className="text-slate-300">Partial box (not full)</Text>
+              </Pressable>
+
+              <Text className="text-slate-400 text-sm mb-2">Remarks (Optional)</Text>
+              <TextInput
+                value={currentBoxRemarks}
+                onChangeText={setCurrentBoxRemarks}
+                placeholder="Any notes about this box..."
+                placeholderTextColor="#64748B"
+                returnKeyType="done"
+                blurOnSubmit
+                onSubmitEditing={Keyboard.dismiss}
+                className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+              />
+
+              <Pressable
+                onPress={() => { Keyboard.dismiss(); handleAddBox(); }}
+                disabled={!currentBoxNo.trim()}
+                className={cn(
+                  'rounded-xl py-4 items-center',
+                  currentBoxNo.trim() ? 'bg-cyan-500 active:opacity-80' : 'bg-slate-700'
+                )}
+              >
+                <Text className={currentBoxNo.trim() ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
+                  Add Box
+                </Text>
+              </Pressable>
             </Pressable>
-          </View>
-        </View>
+          </KeyboardAvoidingView>
+        </Pressable>
       </Modal>
 
       {/* Serial Number Modal */}
       <Modal visible={showSerialModal} transparent animationType="slide">
-        <View className="flex-1 bg-black/70 justify-end">
-          <View className="bg-slate-800 rounded-t-3xl p-6">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-white font-bold text-lg">Add Serial Number</Text>
-              <Pressable onPress={() => setShowSerialModal(false)}>
-                <X size={24} color="#64748B" />
-              </Pressable>
-            </View>
+        <Pressable
+          className="flex-1 bg-black/70 justify-end"
+          onPress={Keyboard.dismiss}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <Pressable
+              className="bg-slate-800 rounded-t-3xl p-6"
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-white font-bold text-lg">Add Serial Number</Text>
+                <Pressable onPress={() => { Keyboard.dismiss(); setShowSerialModal(false); }}>
+                  <X size={24} color="#64748B" />
+                </Pressable>
+              </View>
 
-            <Text className="text-slate-400 text-sm mb-2">Serial Number *</Text>
-            <TextInput
-              value={currentSerialNo}
-              onChangeText={setCurrentSerialNo}
-              placeholder="Enter or scan serial number"
-              placeholderTextColor="#64748B"
-              className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
-              autoCapitalize="characters"
-            />
+              <Text className="text-slate-400 text-sm mb-2">Serial Number *</Text>
+              <TextInput
+                value={currentSerialNo}
+                onChangeText={setCurrentSerialNo}
+                placeholder="Enter or scan serial number"
+                placeholderTextColor="#64748B"
+                returnKeyType="done"
+                blurOnSubmit
+                className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+                autoCapitalize="characters"
+              />
 
-            <Text className="text-slate-400 text-sm mb-2">Status</Text>
-            <View className="flex-row gap-2 mb-4">
-              {SERIAL_STATUSES.map((status) => (
-                <Pressable
-                  key={status.value}
-                  onPress={() => setCurrentSerialStatus(status.value)}
-                  className={cn(
-                    'flex-1 py-3 rounded-xl items-center border-2',
-                    currentSerialStatus === status.value
-                      ? `${status.color} border-transparent`
-                      : 'bg-slate-700/50 border-slate-600'
-                  )}
-                >
-                  <Text
+              <Text className="text-slate-400 text-sm mb-2">Status</Text>
+              <View className="flex-row gap-2 mb-4">
+                {SERIAL_STATUSES.map((status) => (
+                  <Pressable
+                    key={status.value}
+                    onPress={() => { Keyboard.dismiss(); setCurrentSerialStatus(status.value); }}
                     className={cn(
-                      'font-semibold',
-                      currentSerialStatus === status.value ? 'text-white' : 'text-slate-400'
+                      'flex-1 py-3 rounded-xl items-center border-2',
+                      currentSerialStatus === status.value
+                        ? `${status.color} border-transparent`
+                        : 'bg-slate-700/50 border-slate-600'
                     )}
                   >
-                    {status.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+                    <Text
+                      className={cn(
+                        'font-semibold',
+                        currentSerialStatus === status.value ? 'text-white' : 'text-slate-400'
+                      )}
+                    >
+                      {status.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
 
-            {currentSerialStatus === 'damaged' && (
-              <>
-                <Text className="text-slate-400 text-sm mb-2">Damage Category</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
-                  <View className="flex-row gap-2">
-                    {DAMAGE_CATEGORIES.map((cat) => (
-                      <Pressable
-                        key={cat.value}
-                        onPress={() => setCurrentSerialDamageCategory(cat.value)}
-                        className={cn(
-                          'px-4 py-2 rounded-xl',
-                          currentSerialDamageCategory === cat.value ? 'bg-red-500' : 'bg-slate-700'
-                        )}
-                      >
-                        <Text className={currentSerialDamageCategory === cat.value ? 'text-white' : 'text-slate-400'}>
-                          {cat.label}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </ScrollView>
+              {currentSerialStatus === 'damaged' && (
+                <>
+                  <Text className="text-slate-400 text-sm mb-2">Damage Category</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
+                    <View className="flex-row gap-2">
+                      {DAMAGE_CATEGORIES.map((cat) => (
+                        <Pressable
+                          key={cat.value}
+                          onPress={() => { Keyboard.dismiss(); setCurrentSerialDamageCategory(cat.value); }}
+                          className={cn(
+                            'px-4 py-2 rounded-xl',
+                            currentSerialDamageCategory === cat.value ? 'bg-red-500' : 'bg-slate-700'
+                          )}
+                        >
+                          <Text className={currentSerialDamageCategory === cat.value ? 'text-white' : 'text-slate-400'}>
+                            {cat.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </ScrollView>
 
-                <Text className="text-slate-400 text-sm mb-2">Damage Remarks</Text>
-                <TextInput
-                  value={currentSerialDamageRemarks}
-                  onChangeText={setCurrentSerialDamageRemarks}
-                  placeholder="Describe the damage..."
-                  placeholderTextColor="#64748B"
-                  multiline
-                  numberOfLines={2}
-                  className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
-                />
-              </>
-            )}
-
-            <Pressable
-              onPress={handleAddSerialEntry}
-              disabled={!currentSerialNo.trim()}
-              className={cn(
-                'rounded-xl py-4 items-center',
-                currentSerialNo.trim() ? 'bg-green-500 active:opacity-80' : 'bg-slate-700'
+                  <Text className="text-slate-400 text-sm mb-2">Damage Remarks</Text>
+                  <TextInput
+                    value={currentSerialDamageRemarks}
+                    onChangeText={setCurrentSerialDamageRemarks}
+                    placeholder="Describe the damage..."
+                    placeholderTextColor="#64748B"
+                    multiline
+                    numberOfLines={2}
+                    returnKeyType="done"
+                    blurOnSubmit
+                    onSubmitEditing={Keyboard.dismiss}
+                    className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+                  />
+                </>
               )}
-            >
-              <Text className={currentSerialNo.trim() ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
-                Add Serial Number
-              </Text>
+
+              <Pressable
+                onPress={() => { Keyboard.dismiss(); handleAddSerialEntry(); }}
+                disabled={!currentSerialNo.trim()}
+                className={cn(
+                  'rounded-xl py-4 items-center',
+                  currentSerialNo.trim() ? 'bg-green-500 active:opacity-80' : 'bg-slate-700'
+                )}
+              >
+                <Text className={currentSerialNo.trim() ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
+                  Add Serial Number
+                </Text>
+              </Pressable>
             </Pressable>
-          </View>
-        </View>
+          </KeyboardAvoidingView>
+        </Pressable>
       </Modal>
     </View>
   );
