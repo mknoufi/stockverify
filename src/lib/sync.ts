@@ -103,10 +103,15 @@ export const useSyncStore = create<SyncState>()(
 
           set({ isConnected: true });
 
-          // Check backend health
+          // Check backend health - silently fail if not available
           const isHealthy = await api.checkHealth();
           if (!isHealthy) {
-            throw new Error('Backend server is not reachable');
+            set({
+              status: 'error',
+              lastError: 'Backend server is not reachable',
+              isSyncing: false
+            });
+            return;
           }
 
           // Get sync status from backend
@@ -130,28 +135,23 @@ export const useSyncStore = create<SyncState>()(
             lastError: null,
             isSyncing: false,
           });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Sync failed';
-          set({ status: 'error', lastError: message, isSyncing: false });
+        } catch {
+          // Silently handle sync errors
+          set({ status: 'error', lastError: 'Sync failed', isSyncing: false });
         }
       },
 
       downloadData: async () => {
-        try {
-          // Fetch items from ERP (SQL Server via backend)
-          const itemsResponse = await api.getItems({ limit: 1000 });
-          if (itemsResponse.success && itemsResponse.data) {
-            set({ items: itemsResponse.data });
-          }
+        // Fetch items from ERP (SQL Server via backend)
+        const itemsResponse = await api.getItems({ limit: 1000 });
+        if (itemsResponse.success && itemsResponse.data) {
+          set({ items: itemsResponse.data });
+        }
 
-          // Fetch users
-          const usersResponse = await api.getUsers();
-          if (usersResponse.success && usersResponse.data) {
-            set({ users: usersResponse.data });
-          }
-        } catch (error) {
-          // Silent fail - data will be fetched on next sync
-          throw error;
+        // Fetch users
+        const usersResponse = await api.getUsers();
+        if (usersResponse.success && usersResponse.data) {
+          set({ users: usersResponse.data });
         }
       },
 
@@ -161,52 +161,47 @@ export const useSyncStore = create<SyncState>()(
 
         if (pendingOps.length === 0) return;
 
-        try {
-          // Sort by timestamp to maintain order
-          const sortedOps = [...pendingOps].sort(
-            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-          );
+        // Sort by timestamp to maintain order
+        const sortedOps = [...pendingOps].sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
 
-          // Convert to batch sync format
-          const operations = sortedOps.map((op) => ({
-            type: op.type,
-            offline_id: op.offline_id,
-            data: op.data,
-            timestamp: op.timestamp,
-          }));
+        // Convert to batch sync format
+        const operations = sortedOps.map((op) => ({
+          type: op.type,
+          offline_id: op.offline_id,
+          data: op.data,
+          timestamp: op.timestamp,
+        }));
 
-          const response = await api.batchSync(operations);
+        const response = await api.batchSync(operations);
 
-          if (response.success && response.data) {
-            const newMappings = { ...state.idMappings };
-            const updatedOps = state.offlineOperations.map((op) => {
-              const result = response.data?.results.find((r) => r.offline_id === op.offline_id);
-              if (result?.success) {
-                // Store ID mapping
-                if (result.server_id) {
-                  newMappings[op.offline_id] = result.server_id;
-                }
-                return { ...op, synced: true };
+        if (response.success && response.data) {
+          const newMappings = { ...state.idMappings };
+          const updatedOps = state.offlineOperations.map((op) => {
+            const result = response.data?.results.find((r) => r.offline_id === op.offline_id);
+            if (result?.success) {
+              // Store ID mapping
+              if (result.server_id) {
+                newMappings[op.offline_id] = result.server_id;
               }
-              return op;
-            });
+              return { ...op, synced: true };
+            }
+            return op;
+          });
 
-            set({
-              offlineOperations: updatedOps,
-              idMappings: newMappings,
-            });
+          set({
+            offlineOperations: updatedOps,
+            idMappings: newMappings,
+          });
 
-            // Clean up synced operations older than 24 hours
-            const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
-            set({
-              offlineOperations: updatedOps.filter(
-                (op) => !op.synced || new Date(op.timestamp).getTime() > dayAgo
-              ),
-            });
-          }
-        } catch (error) {
-          // Silent fail - will retry on next sync
-          throw error;
+          // Clean up synced operations older than 24 hours
+          const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+          set({
+            offlineOperations: updatedOps.filter(
+              (op) => !op.synced || new Date(op.timestamp).getTime() > dayAgo
+            ),
+          });
         }
       },
 

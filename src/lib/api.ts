@@ -109,10 +109,7 @@ class ApiService {
       clearTimeout(timeoutId);
       const isAbort = error instanceof Error && error.name === 'AbortError';
       const message = isAbort ? 'Request timeout' : (error instanceof Error ? error.message : 'Unknown error');
-      // Use warn instead of error to avoid triggering React Native's error handler
-      if (!isAbort) {
-        console.warn(`API [${endpoint}]:`, message);
-      }
+      // Silently return error response - no console logging to avoid RN error handler
       return { success: false, error: message };
     }
   }
