@@ -53,7 +53,14 @@ export default function LoginScreen() {
   const handleBiometric = async () => {
     // Biometric is simulated for demo - in production, integrate with device biometrics
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    login({ id: '1', username: 'demo', name: 'Demo User' }, '1234');
+    login({
+      id: '1',
+      username: 'staff1',
+      name: 'Rahul Kumar',
+      role: 'staff',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    }, '1234');
     router.replace('/dashboard');
   };
 
@@ -68,7 +75,14 @@ export default function LoginScreen() {
       }
       // Demo: any 4-digit PIN works
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      login({ id: '1', username: 'demo', name: 'Demo User' }, pin);
+      login({
+        id: '1',
+        username: 'staff1',
+        name: 'Rahul Kumar',
+        role: 'staff',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      }, pin);
       router.replace('/dashboard');
     } else {
       if (!username || !password) {
@@ -83,9 +97,21 @@ export default function LoginScreen() {
         return;
       }
 
-      // Demo login - accept any credentials
+      // Demo login - accept any credentials and determine role based on username
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      login({ id: '1', username, name: username }, '1234');
+      const role = username.toLowerCase().includes('admin')
+        ? 'admin' as const
+        : username.toLowerCase().includes('super')
+          ? 'supervisor' as const
+          : 'staff' as const;
+      login({
+        id: Date.now().toString(),
+        username,
+        name: username,
+        role,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      }, '1234');
       router.replace('/dashboard');
     }
   };
@@ -97,7 +123,19 @@ export default function LoginScreen() {
       return;
     }
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    login({ id: '1', username, name: username }, newPin);
+    const role = username.toLowerCase().includes('admin')
+      ? 'admin' as const
+      : username.toLowerCase().includes('super')
+        ? 'supervisor' as const
+        : 'staff' as const;
+    login({
+      id: Date.now().toString(),
+      username,
+      name: username,
+      role,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    }, newPin);
     router.replace('/dashboard');
   };
 

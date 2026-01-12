@@ -69,6 +69,7 @@ export default function CreateSessionScreen() {
 
     const session = createSession({
       userId: user?.id ?? '',
+      userName: user?.name ?? '',
       locationType: locationType!,
       floor: locationType === 'showroom' ? floor! : undefined,
       area: locationType === 'godown' ? area! : undefined,

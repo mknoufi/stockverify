@@ -1,20 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { mockItems, useSessionStore } from '@/lib/store';
-import type { ItemCondition, DateEntryType } from '@/lib/types';
+import type { ItemCondition, DateEntryType, SerialNumber } from '@/lib/types';
 import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import NetInfo from '@react-native-community/netinfo';
 import {
   X,
   CheckCircle2,
   Package,
-  AlertTriangle,
   TrendingDown,
   TrendingUp,
+  WifiOff,
 } from 'lucide-react-native';
 
 export default function ConfirmEntryScreen() {
@@ -38,11 +39,22 @@ export default function ConfirmEntryScreen() {
 
   const currentSession = useSessionStore((s) => s.currentSession);
   const addEntry = useSessionStore((s) => s.addEntry);
+  const addToOfflineQueue = useSessionStore((s) => s.addToOfflineQueue);
+
+  const [isConnected, setIsConnected] = useState<boolean | null>(true);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsConnected(state.isConnected);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const item = mockItems.find((i) => i.id === params.itemId);
   const countedQty = parseInt(params.countedQty ?? '0');
   const variance = parseInt(params.variance ?? '0');
-  const serialNumbers: string[] = params.serialNumbers ? JSON.parse(params.serialNumbers) : [];
+  const serialNumberStrings: string[] = params.serialNumbers ? JSON.parse(params.serialNumbers) : [];
+  const serialNumbers: SerialNumber[] = serialNumberStrings.map((s) => ({ serial: s, status: 'active' as const }));
 
   const getVarianceIcon = () => {
     if (variance < 0) return TrendingDown;
@@ -73,12 +85,16 @@ export default function ConfirmEntryScreen() {
 
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    addEntry({
+    const entryData = {
       sessionId: currentSession.id,
       itemId: item.id,
+      itemCode: item.itemCode,
+      itemName: item.name,
       itemBarcode: params.barcode ?? item.barcode,
+      systemStock: item.systemStock,
       countedQty,
       variance,
+      varianceValue: variance * item.mrp,
       condition: params.condition ?? 'new',
       issueDetails: params.issueDetails || undefined,
       mrp: item.mrp,
@@ -90,7 +106,18 @@ export default function ConfirmEntryScreen() {
       serialNumbers: serialNumbers.length > 0 ? serialNumbers : undefined,
       remark: params.remark || undefined,
       bundleItems: params.bundleItems ? JSON.parse(params.bundleItems) : undefined,
-    });
+    };
+
+    // Add entry locally
+    addEntry(entryData);
+
+    // If offline, also queue for later sync
+    if (!isConnected) {
+      addToOfflineQueue({
+        type: 'create_entry',
+        payload: entryData,
+      });
+    }
 
     // Go back to scan screen
     router.dismissAll();
@@ -282,12 +309,12 @@ export default function ConfirmEntryScreen() {
                         Serial Numbers ({serialNumbers.length})
                       </Text>
                       <View className="flex-row flex-wrap gap-2">
-                        {serialNumbers.map((serial) => (
+                        {serialNumbers.map((sn) => (
                           <View
-                            key={serial}
+                            key={sn.serial}
                             className="bg-slate-700 px-3 py-1 rounded-lg"
                           >
-                            <Text className="text-white text-sm">{serial}</Text>
+                            <Text className="text-white text-sm">{sn.serial}</Text>
                           </View>
                         ))}
                       </View>
@@ -302,6 +329,19 @@ export default function ConfirmEntryScreen() {
                   )}
                 </View>
               </Animated.View>
+
+              {/* Offline Notice */}
+              {!isConnected && (
+                <Animated.View
+                  entering={FadeInDown.duration(300)}
+                  className="bg-amber-500/20 border border-amber-500/30 rounded-xl p-3 mb-4 flex-row items-center"
+                >
+                  <WifiOff size={18} color="#F59E0B" />
+                  <Text className="text-amber-400 text-sm ml-2 flex-1">
+                    You're offline. Entry will be saved locally and synced when connected.
+                  </Text>
+                </Animated.View>
+              )}
 
               {/* Action Buttons */}
               <Animated.View

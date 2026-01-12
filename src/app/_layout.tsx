@@ -35,6 +35,9 @@ function RootLayoutNav() {
             animation: 'slide_from_bottom'
           }}
         />
+        <Stack.Screen name="supervisor/verifications" />
+        <Stack.Screen name="admin/users" />
+        <Stack.Screen name="admin/audit-logs" />
       </Stack>
     </ThemeProvider>
   );

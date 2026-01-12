@@ -15,7 +15,8 @@ import {
   Package,
   ChevronRight,
   X,
-  Camera,
+  Info,
+  AlertCircle,
 } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
@@ -30,6 +31,18 @@ export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
 
   const searchInputRef = useRef<TextInput>(null);
+
+  // Determine search mode based on prefix (51/52/53 → barcode, else → name)
+  const getSearchMode = (query: string): 'barcode' | 'name' | null => {
+    if (query.length < 2) return null;
+    const prefix = query.substring(0, 2);
+    if (prefix === '51' || prefix === '52' || prefix === '53') {
+      return 'barcode';
+    }
+    return 'name';
+  };
+
+  const searchMode = getSearchMode(searchQuery);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -172,6 +185,13 @@ export default function ScanScreen() {
                   placeholderTextColor="#64748B"
                   className="flex-1 py-4 px-3 text-white text-base"
                 />
+                {searchMode && (
+                  <View className={`px-2 py-1 rounded-full mr-2 ${searchMode === 'barcode' ? 'bg-purple-500/20' : 'bg-green-500/20'}`}>
+                    <Text className={`text-xs font-medium ${searchMode === 'barcode' ? 'text-purple-400' : 'text-green-400'}`}>
+                      {searchMode === 'barcode' ? 'Barcode' : 'Name'}
+                    </Text>
+                  </View>
+                )}
                 {searchQuery.length > 0 && (
                   <Pressable
                     onPress={() => {
@@ -183,6 +203,13 @@ export default function ScanScreen() {
                   </Pressable>
                 )}
               </View>
+              {searchMode && (
+                <Text className="text-slate-500 text-xs mt-2 px-1">
+                  {searchMode === 'barcode'
+                    ? 'Prefix 51/52/53 detected - searching by barcode'
+                    : 'Searching by item name'}
+                </Text>
+              )}
             </Animated.View>
 
             {/* Scan Button */}
