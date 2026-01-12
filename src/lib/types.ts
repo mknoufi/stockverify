@@ -8,7 +8,7 @@ export type DateEntryType = 'year_only' | 'month_year' | 'full_date' | 'none';
 export type UserRole = 'staff' | 'supervisor' | 'admin';
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'recount';
 export type SerialStatus = 'active' | 'damaged' | 'missing';
-export type DamageCategory = 'transit' | 'handling' | 'customer_return' | 'unknown';
+export type DamageCategory = 'transit' | 'handling' | 'customer_return' | 'storage' | 'unknown';
 
 export interface User {
   id: string;
@@ -140,4 +140,42 @@ export interface VerificationEntry {
   session: Session;
   item: Item;
   staffName: string;
+}
+
+// Additional types for entry form
+export interface SerialEntry {
+  id: string;
+  serialNumber: string;
+  status: SerialStatus;
+  condition?: ItemCondition;
+  damageCategory?: DamageCategory;
+  damageRemarks?: string;
+}
+
+export interface DamageEntry {
+  category: DamageCategory;
+  description: string;
+  quantity?: number;
+  remarks?: string;
+  photos?: string[];
+}
+
+export interface BatchInfo {
+  id: string;
+  batchNumber?: string;
+  batchNo?: string;
+  mfgDate?: string;
+  expiryDate?: string;
+  quantity: number;
+  damageQty?: number;
+}
+
+export interface BoxCount {
+  id: string;
+  boxNumber?: string;
+  boxNo?: string;
+  countInBox?: number;
+  quantityInBox?: number;
+  isPartial?: boolean;
+  remarks?: string;
 }

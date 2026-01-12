@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { mockItems, useSessionStore } from '@/lib/store';
-import type { ItemCondition, DateEntryType, BundleItem, DamageCategory, BatchInfo, DamageEntry, BoxCount, SerialEntry, SerialStatus } from '@/lib/types';
+import type { ItemCondition, DateEntryType, BundleItem, DamageCategory, CountedEntry, SerialStatus, SerialEntry, DamageEntry, BatchInfo, BoxCount } from '@/lib/types';
 import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -82,9 +82,9 @@ export default function EntryFormScreen() {
   const systemStock = variant?.systemStock ?? item?.systemStock ?? 0;
 
   // Check for duplicate entry in current session
-  const [duplicateEntry, setDuplicateEntry] = useState<ReturnType<typeof checkDuplicateEntry>>(null);
+  const [duplicateEntry, setDuplicateEntry] = useState<CountedEntry | undefined>(undefined);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  const [otherLocationEntries, setOtherLocationEntries] = useState<ReturnType<typeof getItemEntriesAcrossSessions>>([]);
+  const [otherLocationEntries, setOtherLocationEntries] = useState<CountedEntry[]>([]);
 
   useEffect(() => {
     if (currentSession && item) {
@@ -161,8 +161,8 @@ export default function EntryFormScreen() {
   const [currentSerialDamageRemarks, setCurrentSerialDamageRemarks] = useState('');
 
   const variance = countedQty - systemStock;
-  const totalDamage = damageEntries.reduce((sum, d) => sum + d.quantity, 0);
-  const totalBoxQty = boxCounts.reduce((sum, b) => sum + b.quantityInBox, 0);
+  const totalDamage = damageEntries.reduce((sum, d) => sum + (d.quantity ?? 0), 0);
+  const totalBoxQty = boxCounts.reduce((sum, b) => sum + (b.quantityInBox ?? 0), 0);
 
   const getVarianceColor = () => {
     if (variance < 0) return 'text-red-400';
@@ -232,6 +232,7 @@ export default function EntryFormScreen() {
       const newEntry: DamageEntry = {
         quantity: currentDamageQty,
         category: currentDamageCategory,
+        description: currentDamageRemarks || '',
         remarks: currentDamageRemarks || undefined,
         photos: currentDamagePhotos.length > 0 ? currentDamagePhotos : undefined,
       };
@@ -251,7 +252,7 @@ export default function EntryFormScreen() {
   const handleRemoveDamageEntry = (index: number) => {
     const removed = damageEntries[index];
     setDamageEntries(damageEntries.filter((_, i) => i !== index));
-    setDamageQty(damageQty - removed.quantity);
+    setDamageQty(damageQty - (removed.quantity ?? 0));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -312,7 +313,7 @@ export default function EntryFormScreen() {
     const removed = boxCounts[index];
     setBoxCounts(boxCounts.filter((_, i) => i !== index));
     // Update counted qty
-    setCountedQty(countedQty - removed.quantityInBox);
+    setCountedQty(countedQty - (removed.quantityInBox ?? 0));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -934,7 +935,7 @@ export default function EntryFormScreen() {
               <Text className="text-white font-bold text-lg ml-2">Duplicate Entry</Text>
             </View>
             <Text className="text-slate-300 mb-4">
-              This item has already been scanned in this session at {duplicateEntry?.locationInRack || 'current location'}.
+              This item has already been scanned in this session at {duplicateEntry?.location || 'current location'}.
               What would you like to do?
             </Text>
             <View className="gap-3">

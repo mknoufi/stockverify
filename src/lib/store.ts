@@ -42,6 +42,8 @@ interface SessionState {
   getPendingVerifications: (supervisorId?: string) => VerificationEntry[];
   getDashboardStats: (userId: string, userRole: UserRole) => DashboardStats;
   getUserById: (userId: string) => User | undefined;
+  checkDuplicateEntry: (sessionId: string, itemId: string, barcode: string) => CountedEntry | undefined;
+  getItemEntriesAcrossSessions: (itemId: string) => CountedEntry[];
 }
 
 // Mock users data
@@ -449,6 +451,14 @@ export const useSessionStore = create<SessionState>()(
         return stats;
       },
       getUserById: (userId) => get().users.find((u) => u.id === userId),
+      checkDuplicateEntry: (sessionId, itemId, barcode) => {
+        return get().entries.find(
+          (e) => e.sessionId === sessionId && e.itemId === itemId && e.itemBarcode === barcode
+        );
+      },
+      getItemEntriesAcrossSessions: (itemId) => {
+        return get().entries.filter((e) => e.itemId === itemId);
+      },
     }),
     {
       name: 'session-storage',
