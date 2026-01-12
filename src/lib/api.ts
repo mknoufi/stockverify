@@ -107,8 +107,12 @@ class ApiService {
       return { success: true, data, timestamp: new Date().toISOString() };
     } catch (error) {
       clearTimeout(timeoutId);
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`API Error [${endpoint}]:`, message);
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      const message = isAbort ? 'Request timeout' : (error instanceof Error ? error.message : 'Unknown error');
+      // Use warn instead of error to avoid triggering React Native's error handler
+      if (!isAbort) {
+        console.warn(`API [${endpoint}]:`, message);
+      }
       return { success: false, error: message };
     }
   }

@@ -150,7 +150,7 @@ export const useSyncStore = create<SyncState>()(
             set({ users: usersResponse.data });
           }
         } catch (error) {
-          console.error('Download failed:', error);
+          // Silent fail - data will be fetched on next sync
           throw error;
         }
       },
@@ -205,7 +205,7 @@ export const useSyncStore = create<SyncState>()(
             });
           }
         } catch (error) {
-          console.error('Upload failed:', error);
+          // Silent fail - will retry on next sync
           throw error;
         }
       },
@@ -256,8 +256,13 @@ export function startAutoSync() {
 
   if (!autoSync) return;
 
-  // Initial sync
-  syncNow();
+  // Delay initial sync to avoid startup errors
+  setTimeout(() => {
+    const state = useSyncStore.getState();
+    if (state.autoSync && state.isConnected) {
+      syncNow();
+    }
+  }, 3000);
 
   // Set up interval
   syncIntervalId = setInterval(() => {
@@ -285,7 +290,6 @@ export function startNetworkListener() {
 
     // Auto-sync when coming back online
     if (wasOffline && state.isConnected) {
-      console.log('Network restored, starting sync...');
       useSyncStore.getState().syncNow();
     }
   });
