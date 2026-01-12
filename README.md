@@ -66,6 +66,23 @@ A professional stock verification and inventory audit mobile app built with Expo
 - Serial number capture
 - Bundle item support
 - Remarks/notes
+- **Location in Rack**: Specify shelf, bin, or exact position
+- **Multi-Location Detection**: Warns when item exists in other sessions
+- **Duplicate Scan Detection**: Prevents same item/same location duplicates with options to:
+  - Update existing entry
+  - Add as different location
+  - Cancel
+- **Batch Management**: Track multiple batches of same item with:
+  - Batch number
+  - Quantity per batch
+  - Manufacturing date
+  - Expiry date
+- **Damage Tracking**: Record damaged items with:
+  - Damage quantity
+  - Category (Transit, Handling, Customer Return, Storage, Unknown)
+  - Remarks/description
+  - Photo evidence
+- **Photo Upload**: Capture item photos via camera or gallery
 
 ### Verification Workflow (Supervisor/Admin)
 - Session-level review with all entries
@@ -172,6 +189,7 @@ Access sync settings from the dashboard. Configure:
 - expo-camera for barcode scanning
 - react-native-reanimated for animations
 - @react-native-community/netinfo for network status
+- expo-image-picker for photo capture
 - lucide-react-native for icons
 - date-fns for date formatting
 
@@ -189,8 +207,10 @@ src/
 │   ├── sessions.tsx             # Session list
 │   ├── scan.tsx                 # Item search with prefix routing
 │   ├── item-detail.tsx          # Comprehensive item details
-│   ├── entry-form.tsx           # Stock entry form
+│   ├── entry-form.tsx           # Stock entry with damage/batch/photo
 │   ├── confirm-entry.tsx        # Confirmation with offline support
+│   ├── checkout.tsx             # Session checkout & variance report
+│   ├── sync-settings.tsx        # Sync configuration
 │   ├── supervisor/
 │   │   └── verifications.tsx    # Verification workflow
 │   └── admin/
@@ -202,7 +222,9 @@ src/
 └── lib/
     ├── cn.ts                    # className utility
     ├── store.ts                 # Zustand stores (Auth, Session, Users)
-    └── types.ts                 # TypeScript types
+    ├── types.ts                 # TypeScript types
+    ├── api.ts                   # API service for backend
+    └── sync.ts                  # Sync manager with auto-sync
 ```
 
 ## Demo Users

@@ -9,7 +9,7 @@ export type DateEntryType = 'year_only' | 'month_year' | 'full_date' | 'none';
 export type SessionStatus = 'active' | 'pending_verification' | 'verified' | 'rejected' | 'completed';
 export type EntryStatus = 'pending' | 'verified' | 'rejected' | 'recount_required';
 export type SerialStatus = 'active' | 'damaged' | 'missing';
-export type DamageCategory = 'transit' | 'handling' | 'customer_return' | 'unknown';
+export type DamageCategory = 'transit' | 'handling' | 'customer_return' | 'storage' | 'unknown';
 
 export interface User {
   id: string;
@@ -75,6 +75,27 @@ export interface SerialNumber {
   damageRemarks?: string;
 }
 
+// Batch information for items with multiple batches
+export interface BatchInfo {
+  id: string;
+  batchNo: string;
+  mfgDate?: string;
+  expiryDate?: string;
+  quantity: number;
+  damageQty: number;
+  damageCategory?: DamageCategory;
+  damageRemarks?: string;
+  photos?: string[];
+}
+
+// Damage entry for tracking damaged items
+export interface DamageEntry {
+  quantity: number;
+  category: DamageCategory;
+  remarks?: string;
+  photos?: string[];
+}
+
 export interface CountedEntry {
   id: string;
   sessionId: string;
@@ -98,6 +119,13 @@ export interface CountedEntry {
   photos?: string[];
   remark?: string;
   bundleItems?: BundleItem[];
+  // New fields for enhanced tracking
+  locationInRack?: string; // Specific location within rack (shelf, bin, etc.)
+  batches?: BatchInfo[]; // Multiple batches of same item
+  damageQty?: number; // Total damage quantity
+  damageEntries?: DamageEntry[]; // Multiple damage entries with categories
+  isMultiLocation?: boolean; // Flag if item exists in multiple locations
+  previousEntryId?: string; // Link to previous entry if updating
   createdAt: string;
   updatedAt?: string;
   status: EntryStatus;

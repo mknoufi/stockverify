@@ -36,6 +36,9 @@ interface SessionState {
   addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => void;
   addToOfflineQueue: (action: Omit<OfflineAction, 'id' | 'timestamp' | 'isSynced'>) => void;
   syncOfflineQueue: () => void;
+  // New functions for duplicate detection and multi-location
+  checkDuplicateEntry: (sessionId: string, itemId: string, itemBarcode: string) => CountedEntry | null;
+  getItemEntriesAcrossSessions: (itemId: string) => CountedEntry[];
 }
 
 interface UserManagementState {
@@ -430,6 +433,19 @@ export const useSessionStore = create<SessionState>()(
         set((state) => ({
           offlineQueue: state.offlineQueue.map((a) => ({ ...a, isSynced: true })),
         }));
+      },
+
+      // Check if item already exists in current session (duplicate detection)
+      checkDuplicateEntry: (sessionId, itemId, itemBarcode) => {
+        const entries = get().entries;
+        return entries.find(
+          (e) => e.sessionId === sessionId && (e.itemId === itemId || e.itemBarcode === itemBarcode)
+        ) ?? null;
+      },
+
+      // Get all entries for an item across all sessions (multi-location tracking)
+      getItemEntriesAcrossSessions: (itemId) => {
+        return get().entries.filter((e) => e.itemId === itemId);
       },
     }),
     {
