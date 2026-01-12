@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView, TextInput, Modal } from 'react-nativ
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useAuthStore, useSessionStore, useUserManagementStore } from '@/lib/store';
+import { useAuthStore, useSessionStore, mockItems } from '@/lib/store';
 import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -12,55 +12,62 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Package,
   TrendingDown,
   TrendingUp,
   ChevronRight,
-  AlertTriangle,
   User,
-  RefreshCw,
-  Filter,
   Search,
 } from 'lucide-react-native';
 import { format } from 'date-fns';
-import type { Session, CountedEntry } from '@/lib/types';
+import type { Session, CountedEntry, User as UserType } from '@/lib/types';
 
 export default function VerificationsScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const sessions = useSessionStore((s) => s.sessions);
   const entries = useSessionStore((s) => s.entries);
+  const users = useSessionStore((s) => s.users);
   const getSessionEntries = useSessionStore((s) => s.getSessionEntries);
-  const verifyEntry = useSessionStore((s) => s.verifyEntry);
+  const approveEntry = useSessionStore((s) => s.approveEntry);
   const rejectEntry = useSessionStore((s) => s.rejectEntry);
   const updateSession = useSessionStore((s) => s.updateSession);
-  const users = useUserManagementStore((s) => s.users);
 
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<CountedEntry | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [reassignToUserId, setReassignToUserId] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'verified' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const pendingSessions = sessions.filter((s) => s.status === 'pending_verification');
-  const staffUsers = users.filter((u) => u.role === 'staff' && u.isActive);
+  // Sessions that are submitted and awaiting verification
+  const pendingSessions = sessions.filter((s) => s.status === 'submitted');
+  const staffUsers = users.filter((u: UserType) => u.role === 'staff' && u.isActive);
+
+  const getUserName = (userId: string) => {
+    const foundUser = users.find((u: UserType) => u.id === userId);
+    return foundUser?.name ?? 'Unknown';
+  };
+
+  const getItemName = (itemId: string) => {
+    const item = mockItems.find((i) => i.id === itemId);
+    return item?.name ?? 'Unknown Item';
+  };
 
   const filteredSessions = pendingSessions.filter((session) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
+      const userName = getUserName(session.userId);
       return (
         session.rackNo.toLowerCase().includes(query) ||
-        session.userName.toLowerCase().includes(query)
+        userName.toLowerCase().includes(query)
       );
     }
     return true;
   });
 
-  const handleVerifyEntry = async (entry: CountedEntry) => {
+  const handleApproveEntry = async (entry: CountedEntry) => {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    verifyEntry(entry.id, user?.id ?? '');
+    approveEntry(entry.id, user?.id ?? '');
   };
 
   const handleRejectEntry = async () => {
@@ -77,7 +84,7 @@ export default function VerificationsScreen() {
   const handleApproveSession = async (session: Session) => {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     updateSession(session.id, {
-      status: 'verified',
+      status: 'completed',
       verifiedBy: user?.id,
       verifiedAt: new Date().toISOString(),
     });
@@ -87,7 +94,7 @@ export default function VerificationsScreen() {
   const handleRejectSession = async (session: Session) => {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     updateSession(session.id, {
-      status: 'rejected',
+      status: 'recount',
       verifiedBy: user?.id,
       verifiedAt: new Date().toISOString(),
       rejectionReason: 'Requires re-verification',
@@ -102,8 +109,8 @@ export default function VerificationsScreen() {
       matched: sessionEntries.filter((e) => e.variance === 0).length,
       short: sessionEntries.filter((e) => e.variance < 0).length,
       over: sessionEntries.filter((e) => e.variance > 0).length,
-      pending: sessionEntries.filter((e) => e.status === 'pending').length,
-      verified: sessionEntries.filter((e) => e.status === 'verified').length,
+      pending: sessionEntries.filter((e) => e.verificationStatus === 'pending').length,
+      approved: sessionEntries.filter((e) => e.verificationStatus === 'approved').length,
     };
   };
 
@@ -140,7 +147,7 @@ export default function VerificationsScreen() {
                       <User size={20} color="#3B82F6" />
                     </View>
                     <View className="ml-3">
-                      <Text className="text-white font-semibold">{selectedSession.userName}</Text>
+                      <Text className="text-white font-semibold">{getUserName(selectedSession.userId)}</Text>
                       <Text className="text-gray-400 text-sm">
                         {format(new Date(selectedSession.createdAt), 'MMM d, h:mm a')}
                       </Text>
@@ -169,13 +176,13 @@ export default function VerificationsScreen() {
                 <Text className="text-white font-semibold text-lg mb-3">
                   Items ({sessionEntries.length})
                 </Text>
-                {sessionEntries.map((entry, index) => (
+                {sessionEntries.map((entry) => (
                   <Pressable
                     key={entry.id}
                     className={cn(
                       'bg-slate-800/50 rounded-2xl p-4 mb-3 border',
-                      entry.status === 'verified' ? 'border-green-500/30' :
-                      entry.status === 'rejected' || entry.status === 'recount_required' ? 'border-red-500/30' :
+                      entry.verificationStatus === 'approved' ? 'border-green-500/30' :
+                      entry.verificationStatus === 'rejected' || entry.verificationStatus === 'recount' ? 'border-red-500/30' :
                       'border-slate-700/50'
                     )}
                   >
@@ -195,23 +202,23 @@ export default function VerificationsScreen() {
                       </View>
                       <View className="ml-3 flex-1">
                         <Text className="text-white font-medium" numberOfLines={1}>
-                          {entry.itemName}
+                          {getItemName(entry.itemId)}
                         </Text>
                         <Text className="text-gray-400 text-sm">{entry.itemBarcode}</Text>
                       </View>
                       <View className={cn(
                         'px-3 py-1 rounded-full',
-                        entry.status === 'verified' ? 'bg-green-500/20' :
-                        entry.status === 'rejected' || entry.status === 'recount_required' ? 'bg-red-500/20' :
+                        entry.verificationStatus === 'approved' ? 'bg-green-500/20' :
+                        entry.verificationStatus === 'rejected' || entry.verificationStatus === 'recount' ? 'bg-red-500/20' :
                         'bg-amber-500/20'
                       )}>
                         <Text className={cn(
                           'text-xs font-semibold capitalize',
-                          entry.status === 'verified' ? 'text-green-400' :
-                          entry.status === 'rejected' || entry.status === 'recount_required' ? 'text-red-400' :
+                          entry.verificationStatus === 'approved' ? 'text-green-400' :
+                          entry.verificationStatus === 'rejected' || entry.verificationStatus === 'recount' ? 'text-red-400' :
                           'text-amber-400'
                         )}>
-                          {entry.status === 'recount_required' ? 'Recount' : entry.status}
+                          {entry.verificationStatus === 'recount' ? 'Recount' : entry.verificationStatus}
                         </Text>
                       </View>
                     </View>
@@ -219,7 +226,7 @@ export default function VerificationsScreen() {
                     <View className="flex-row justify-between py-2 border-t border-slate-700/50">
                       <View className="items-center flex-1">
                         <Text className="text-gray-500 text-xs">System</Text>
-                        <Text className="text-white font-semibold">{entry.systemStock}</Text>
+                        <Text className="text-white font-semibold">{entry.mrp}</Text>
                       </View>
                       <View className="w-px bg-slate-700" />
                       <View className="items-center flex-1">
@@ -239,10 +246,10 @@ export default function VerificationsScreen() {
                       </View>
                     </View>
 
-                    {entry.status === 'pending' && (
+                    {entry.verificationStatus === 'pending' && (
                       <View className="flex-row gap-2 mt-3">
                         <Pressable
-                          onPress={() => handleVerifyEntry(entry)}
+                          onPress={() => handleApproveEntry(entry)}
                           className="flex-1 bg-green-500 rounded-xl py-2.5 items-center active:opacity-80"
                         >
                           <Text className="text-white font-semibold">Approve</Text>
@@ -318,7 +325,7 @@ export default function VerificationsScreen() {
                     Same Staff
                   </Text>
                 </Pressable>
-                {staffUsers.map((staff) => (
+                {staffUsers.map((staff: UserType) => (
                   <Pressable
                     key={staff.id}
                     onPress={() => setReassignToUserId(staff.id)}
@@ -409,18 +416,18 @@ export default function VerificationsScreen() {
                     <CheckCircle2 size={20} color="#22C55E" />
                   </View>
                   <Text className="text-white text-2xl font-bold">
-                    {sessions.filter((s) => s.status === 'verified').length}
+                    {sessions.filter((s) => s.status === 'completed').length}
                   </Text>
-                  <Text className="text-gray-500 text-xs">Verified</Text>
+                  <Text className="text-gray-500 text-xs">Completed</Text>
                 </View>
                 <View className="flex-1 bg-red-500/10 rounded-2xl p-4 border border-red-500/20">
                   <View className="w-10 h-10 rounded-xl bg-red-500/20 items-center justify-center mb-2">
                     <XCircle size={20} color="#EF4444" />
                   </View>
                   <Text className="text-white text-2xl font-bold">
-                    {sessions.filter((s) => s.status === 'rejected').length}
+                    {sessions.filter((s) => s.status === 'recount').length}
                   </Text>
-                  <Text className="text-gray-500 text-xs">Rejected</Text>
+                  <Text className="text-gray-500 text-xs">Recount</Text>
                 </View>
               </View>
             </Animated.View>
@@ -462,7 +469,7 @@ export default function VerificationsScreen() {
                             </Text>
                             <View className="w-1 h-1 rounded-full bg-gray-600 mx-2" />
                             <Text className="text-gray-400 text-sm">
-                              {session.userName}
+                              {getUserName(session.userId)}
                             </Text>
                           </View>
                         </View>
