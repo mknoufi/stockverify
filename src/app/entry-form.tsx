@@ -179,8 +179,19 @@ export default function EntryFormScreen() {
   const [currentWeight, setCurrentWeight] = useState('');
   const [currentWeightRemarks, setCurrentWeightRemarks] = useState('');
   const [currentWeightPhoto, setCurrentWeightPhoto] = useState<string | undefined>(undefined);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calculatorValue, setCalculatorValue] = useState('');
   const weightUnit = (item?.uom?.toLowerCase() as 'kg' | 'g' | 'lb') || 'kg';
   const totalWeight = weightEntries.reduce((sum, w) => sum + w.weight, 0);
+
+  // Split count method for multiple quantity items
+  const [enableSplitCount, setEnableSplitCount] = useState(false);
+  const [splitCounts, setSplitCounts] = useState<{ id: string; count: number; label: string }[]>([]);
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [currentSplitCount, setCurrentSplitCount] = useState(1);
+  const [currentSplitLabel, setCurrentSplitLabel] = useState('');
+  const totalSplitCount = splitCounts.reduce((sum, s) => sum + s.count, 0);
+
   const variance = countedQty - systemStock;
   const totalDamage = damageEntries.reduce((sum, d) => sum + (d.quantity ?? 0), 0);
   const totalBoxQty = boxCounts.reduce((sum, b) => sum + (b.quantityInBox ?? 0), 0);
@@ -452,6 +463,71 @@ export default function EntryFormScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // Calculator handlers
+  const handleCalculatorPress = (value: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (value === 'C') {
+      setCalculatorValue('');
+    } else if (value === '⌫') {
+      setCalculatorValue(calculatorValue.slice(0, -1));
+    } else if (value === '=') {
+      try {
+        // Safe evaluation for basic math
+        const sanitized = calculatorValue.replace(/[^0-9+\-*/.()]/g, '');
+        // eslint-disable-next-line no-eval
+        const result = eval(sanitized);
+        if (typeof result === 'number' && !isNaN(result)) {
+          setCalculatorValue(result.toString());
+          setCurrentWeight(result.toFixed(2));
+        }
+      } catch {
+        // Invalid expression, keep current value
+      }
+    } else {
+      setCalculatorValue(calculatorValue + value);
+    }
+  };
+
+  const handleApplyCalculatorResult = () => {
+    const result = parseFloat(calculatorValue);
+    if (!isNaN(result) && result > 0) {
+      setCurrentWeight(result.toFixed(2));
+      setShowCalculator(false);
+      setCalculatorValue('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  // Split count handlers
+  const handleAddSplitCount = () => {
+    if (currentSplitCount > 0) {
+      const newSplit = {
+        id: Date.now().toString(),
+        count: currentSplitCount,
+        label: currentSplitLabel || `Count ${splitCounts.length + 1}`,
+      };
+      setSplitCounts([...splitCounts, newSplit]);
+
+      // Auto-update counted qty based on split totals
+      const newTotal = totalSplitCount + currentSplitCount;
+      setCountedQty(newTotal);
+
+      // Reset modal state
+      setCurrentSplitCount(1);
+      setCurrentSplitLabel('');
+      setShowSplitModal(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const handleRemoveSplitCount = (index: number) => {
+    const removed = splitCounts[index];
+    setSplitCounts(splitCounts.filter((_, i) => i !== index));
+    // Update counted qty
+    setCountedQty(Math.max(0, countedQty - removed.count));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const handleUpdateExisting = () => {
     setShowDuplicateModal(false);
     // Pre-fill with existing data
@@ -626,6 +702,78 @@ export default function EntryFormScreen() {
                     </View>
                   </View>
                 </Animated.View>
+
+                {/* Split Count Section - Optional */}
+                {!isWeightBasedItem && (
+                  <Animated.View
+                    entering={FadeInDown.duration(400).delay(55)}
+                    className="bg-slate-800/50 rounded-2xl p-4 mb-4"
+                  >
+                    <View className="flex-row items-center justify-between mb-3">
+                      <View className="flex-row items-center">
+                        <Layers size={18} color="#8B5CF6" />
+                        <Text className="text-slate-400 text-sm ml-2">Split Count Method</Text>
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          setEnableSplitCount(!enableSplitCount);
+                          if (enableSplitCount) {
+                            // Reset split counts when disabling
+                            setSplitCounts([]);
+                          }
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }}
+                        className={cn(
+                          'px-3 py-1 rounded-full',
+                          enableSplitCount ? 'bg-violet-500' : 'bg-slate-700'
+                        )}
+                      >
+                        <Text className={enableSplitCount ? 'text-white text-sm' : 'text-slate-400 text-sm'}>
+                          {enableSplitCount ? 'Enabled' : 'Disabled'}
+                        </Text>
+                      </Pressable>
+                    </View>
+
+                    {enableSplitCount && (
+                      <>
+                        {/* Split count summary */}
+                        {splitCounts.length > 0 && (
+                          <View className="bg-violet-500/10 rounded-xl p-3 mb-3">
+                            <View className="flex-row justify-between">
+                              <Text className="text-violet-400">Total Counts: {splitCounts.length}</Text>
+                              <Text className="text-violet-400 font-bold">Total Qty: {totalSplitCount}</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Split counts list */}
+                        {splitCounts.length > 0 && (
+                          <View className="mb-3 space-y-2">
+                            {splitCounts.map((split, index) => (
+                              <View key={split.id} className="bg-violet-500/10 rounded-xl p-3 flex-row items-center justify-between">
+                                <View>
+                                  <Text className="text-white font-medium">{split.label}</Text>
+                                  <Text className="text-violet-400 text-sm">{split.count} items</Text>
+                                </View>
+                                <Pressable onPress={() => handleRemoveSplitCount(index)}>
+                                  <Trash2 size={18} color="#8B5CF6" />
+                                </Pressable>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+
+                        <Pressable
+                          onPress={() => setShowSplitModal(true)}
+                          className="bg-violet-500/20 border border-violet-500/30 rounded-xl py-3 flex-row items-center justify-center active:opacity-80"
+                        >
+                          <Plus size={18} color="#8B5CF6" />
+                          <Text className="text-violet-400 font-medium ml-2">Add Count</Text>
+                        </Pressable>
+                      </>
+                    )}
+                  </Animated.View>
+                )}
 
                 {/* Weight Entry Section - for kg/weight-based items */}
                 {isWeightBasedItem && (
@@ -1553,7 +1701,7 @@ export default function EntryFormScreen() {
               </View>
 
               <Text className="text-slate-400 text-sm mb-2">Weight ({weightUnit}) *</Text>
-              <View className="flex-row items-center mb-4">
+              <View className="flex-row items-center mb-2">
                 <TextInput
                   value={currentWeight}
                   onChangeText={setCurrentWeight}
@@ -1568,6 +1716,66 @@ export default function EntryFormScreen() {
                   <Text className="text-white font-bold">{weightUnit}</Text>
                 </View>
               </View>
+
+              {/* Calculator Toggle */}
+              <Pressable
+                onPress={() => setShowCalculator(!showCalculator)}
+                className="flex-row items-center mb-4"
+              >
+                <View className={cn(
+                  'w-5 h-5 rounded border-2 items-center justify-center mr-2',
+                  showCalculator ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600'
+                )}>
+                  {showCalculator && <Text className="text-white text-xs">✓</Text>}
+                </View>
+                <Text className="text-slate-400 text-sm">Use Calculator</Text>
+              </Pressable>
+
+              {/* Calculator */}
+              {showCalculator && (
+                <View className="bg-slate-900/50 rounded-xl p-3 mb-4 border border-slate-700">
+                  <View className="bg-slate-800 rounded-lg p-3 mb-3">
+                    <Text className="text-emerald-400 text-right text-2xl font-mono">
+                      {calculatorValue || '0'}
+                    </Text>
+                  </View>
+                  <View className="space-y-2">
+                    {[
+                      ['7', '8', '9', '/'],
+                      ['4', '5', '6', '*'],
+                      ['1', '2', '3', '-'],
+                      ['C', '0', '.', '+'],
+                      ['⌫', '(', ')', '='],
+                    ].map((row, rowIndex) => (
+                      <View key={rowIndex} className="flex-row gap-2">
+                        {row.map((btn) => (
+                          <Pressable
+                            key={btn}
+                            onPress={() => handleCalculatorPress(btn)}
+                            className={cn(
+                              'flex-1 py-3 rounded-lg items-center justify-center active:opacity-70',
+                              btn === '=' ? 'bg-emerald-500' :
+                              btn === 'C' ? 'bg-red-500/50' :
+                              btn === '⌫' ? 'bg-amber-500/50' :
+                              ['+', '-', '*', '/', '(', ')'].includes(btn) ? 'bg-slate-600' : 'bg-slate-700'
+                            )}
+                          >
+                            <Text className="text-white text-lg font-medium">{btn}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                  {calculatorValue && (
+                    <Pressable
+                      onPress={handleApplyCalculatorResult}
+                      className="bg-emerald-500/20 border border-emerald-500/30 rounded-lg py-2 mt-3 items-center active:opacity-80"
+                    >
+                      <Text className="text-emerald-400 font-medium">Apply Result to Weight</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
 
               <Text className="text-slate-400 text-sm mb-2">Remarks (Optional)</Text>
               <TextInput
@@ -1633,6 +1841,100 @@ export default function EntryFormScreen() {
               >
                 <Text className={currentWeight && parseFloat(currentWeight) > 0 && currentWeightPhoto ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
                   Add Weight Entry
+                </Text>
+              </Pressable>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
+
+      {/* Split Count Modal */}
+      <Modal visible={showSplitModal} transparent animationType="slide">
+        <Pressable
+          className="flex-1 bg-black/70 justify-end"
+          onPress={Keyboard.dismiss}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <Pressable
+              className="bg-slate-800 rounded-t-3xl p-6"
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-white font-bold text-lg">Add Split Count</Text>
+                <Pressable onPress={() => { Keyboard.dismiss(); setShowSplitModal(false); }}>
+                  <X size={24} color="#64748B" />
+                </Pressable>
+              </View>
+
+              <Text className="text-slate-400 text-sm mb-1">Current Total</Text>
+              <View className="bg-violet-500/10 rounded-xl p-3 mb-4">
+                <Text className="text-violet-400 text-2xl font-bold text-center">
+                  {totalSplitCount} items
+                </Text>
+              </View>
+
+              <Text className="text-slate-400 text-sm mb-2">Label (Optional)</Text>
+              <TextInput
+                value={currentSplitLabel}
+                onChangeText={setCurrentSplitLabel}
+                placeholder="e.g., Shelf A, Box 1, Left Side..."
+                placeholderTextColor="#64748B"
+                returnKeyType="next"
+                className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+              />
+
+              <Text className="text-slate-400 text-sm mb-2">Count *</Text>
+              <View className="flex-row items-center mb-4">
+                <Pressable
+                  onPress={() => currentSplitCount > 1 && setCurrentSplitCount(currentSplitCount - 1)}
+                  className="w-14 h-14 rounded-xl bg-slate-700 items-center justify-center"
+                >
+                  <Minus size={24} color="#fff" />
+                </Pressable>
+                <TextInput
+                  value={currentSplitCount.toString()}
+                  onChangeText={(v) => setCurrentSplitCount(parseInt(v) || 1)}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  blurOnSubmit
+                  className="flex-1 text-center text-white text-3xl font-bold mx-4"
+                />
+                <Pressable
+                  onPress={() => setCurrentSplitCount(currentSplitCount + 1)}
+                  className="w-14 h-14 rounded-xl bg-violet-500 items-center justify-center"
+                >
+                  <Plus size={24} color="#fff" />
+                </Pressable>
+              </View>
+
+              {/* Quick add buttons */}
+              <View className="flex-row gap-2 mb-4">
+                {[5, 10, 25, 50, 100].map((num) => (
+                  <Pressable
+                    key={num}
+                    onPress={() => {
+                      setCurrentSplitCount(num);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    className="flex-1 bg-slate-700 rounded-lg py-2 items-center active:opacity-70"
+                  >
+                    <Text className="text-slate-300 text-sm">{num}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Pressable
+                onPress={() => { Keyboard.dismiss(); handleAddSplitCount(); }}
+                disabled={currentSplitCount <= 0}
+                className={cn(
+                  'rounded-xl py-4 items-center',
+                  currentSplitCount > 0 ? 'bg-violet-500 active:opacity-80' : 'bg-slate-700'
+                )}
+              >
+                <Text className={currentSplitCount > 0 ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
+                  Add Count
                 </Text>
               </Pressable>
             </Pressable>

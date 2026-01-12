@@ -80,6 +80,12 @@ A professional stock verification and inventory audit mobile app built with Expo
   - Auto-calculation of total weight
   - Remarks per weight entry
   - Timestamp tracking
+  - Optional built-in calculator for weight calculations
+- **Split Count Method (optional):**
+  - Split counting into multiple entries for easier verification
+  - Label each count (e.g., "Shelf A", "Box 1")
+  - Quick add buttons (5, 10, 25, 50, 100)
+  - Auto-totaling of all split counts
 
 ### Confirmation Flow
 - Review all entered data before submission
