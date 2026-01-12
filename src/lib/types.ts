@@ -179,3 +179,11 @@ export interface BoxCount {
   isPartial?: boolean;
   remarks?: string;
 }
+
+export interface WeightEntry {
+  id: string;
+  weight: number;
+  unit: 'kg' | 'g' | 'lb';
+  remarks?: string;
+  timestamp: string;
+}

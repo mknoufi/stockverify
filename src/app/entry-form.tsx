@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { mockItems, useSessionStore } from '@/lib/store';
-import type { ItemCondition, DateEntryType, BundleItem, DamageCategory, CountedEntry, SerialStatus, SerialEntry, DamageEntry, BatchInfo, BoxCount } from '@/lib/types';
+import type { ItemCondition, DateEntryType, BundleItem, DamageCategory, CountedEntry, SerialStatus, SerialEntry, DamageEntry, BatchInfo, BoxCount, WeightEntry } from '@/lib/types';
 import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -40,6 +40,7 @@ import {
   Trash2,
   Box,
   ScanLine,
+  Scale,
 } from 'lucide-react-native';
 
 type DateType = DateEntryType;
@@ -171,6 +172,14 @@ export default function EntryFormScreen() {
   const [currentSerialDamageCategory, setCurrentSerialDamageCategory] = useState<DamageCategory>('unknown');
   const [currentSerialDamageRemarks, setCurrentSerialDamageRemarks] = useState('');
 
+  // Weight entry for kg/weight-based items (single scale scenario)
+  const isWeightBasedItem = item?.uom?.toLowerCase() === 'kg' || item?.uom?.toLowerCase() === 'g' || item?.uom?.toLowerCase() === 'lb';
+  const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [currentWeight, setCurrentWeight] = useState('');
+  const [currentWeightRemarks, setCurrentWeightRemarks] = useState('');
+  const weightUnit = (item?.uom?.toLowerCase() as 'kg' | 'g' | 'lb') || 'kg';
+  const totalWeight = weightEntries.reduce((sum, w) => sum + w.weight, 0);
   const variance = countedQty - systemStock;
   const totalDamage = damageEntries.reduce((sum, d) => sum + (d.quantity ?? 0), 0);
   const totalBoxQty = boxCounts.reduce((sum, b) => sum + (b.quantityInBox ?? 0), 0);
@@ -367,6 +376,40 @@ export default function EntryFormScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // Weight entry handlers for kg/weight-based items
+  const handleAddWeightEntry = () => {
+    const weightValue = parseFloat(currentWeight);
+    if (weightValue > 0) {
+      const newEntry: WeightEntry = {
+        id: Date.now().toString(),
+        weight: weightValue,
+        unit: weightUnit,
+        remarks: currentWeightRemarks || undefined,
+        timestamp: new Date().toISOString(),
+      };
+      setWeightEntries([...weightEntries, newEntry]);
+
+      // Auto-update counted qty based on total weight
+      const newTotal = totalWeight + weightValue;
+      setCountedQty(parseFloat(newTotal.toFixed(2)));
+
+      // Reset modal state
+      setCurrentWeight('');
+      setCurrentWeightRemarks('');
+      setShowWeightModal(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const handleRemoveWeightEntry = (index: number) => {
+    const removed = weightEntries[index];
+    setWeightEntries(weightEntries.filter((_, i) => i !== index));
+    // Update counted qty
+    const newTotal = totalWeight - removed.weight;
+    setCountedQty(parseFloat(Math.max(0, newTotal).toFixed(2)));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const handleUpdateExisting = () => {
     setShowDuplicateModal(false);
     // Pre-fill with existing data
@@ -541,6 +584,70 @@ export default function EntryFormScreen() {
                     </View>
                   </View>
                 </Animated.View>
+
+                {/* Weight Entry Section - for kg/weight-based items */}
+                {isWeightBasedItem && (
+                  <Animated.View
+                    entering={FadeInDown.duration(400).delay(60)}
+                    className="bg-slate-800/50 rounded-2xl p-4 mb-4"
+                  >
+                    <View className="flex-row items-center justify-between mb-3">
+                      <View className="flex-row items-center">
+                        <Scale size={18} color="#10B981" />
+                        <Text className="text-slate-400 text-sm ml-2">Weight Entries (Single Scale)</Text>
+                      </View>
+                      {weightEntries.length > 0 && (
+                        <View className="bg-emerald-500/20 px-3 py-1 rounded-full">
+                          <Text className="text-emerald-400 text-sm font-medium">
+                            {weightEntries.length} weighing{weightEntries.length > 1 ? 's' : ''}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Total weight display */}
+                    <View className="bg-emerald-500/10 rounded-xl p-4 mb-3">
+                      <Text className="text-slate-400 text-sm text-center">Total Weight</Text>
+                      <Text className="text-emerald-400 text-3xl font-bold text-center">
+                        {totalWeight.toFixed(2)} {weightUnit}
+                      </Text>
+                    </View>
+
+                    {/* Weight entries list */}
+                    {weightEntries.length > 0 && (
+                      <View className="mb-3 space-y-2">
+                        {weightEntries.map((entry, index) => (
+                          <View key={entry.id} className="bg-emerald-500/10 rounded-xl p-3 flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <View className="flex-row items-center">
+                                <Text className="text-white font-medium">
+                                  #{index + 1}: {entry.weight.toFixed(2)} {entry.unit}
+                                </Text>
+                              </View>
+                              {entry.remarks && (
+                                <Text className="text-slate-400 text-xs mt-1">{entry.remarks}</Text>
+                              )}
+                              <Text className="text-slate-500 text-xs mt-1">
+                                {new Date(entry.timestamp).toLocaleTimeString()}
+                              </Text>
+                            </View>
+                            <Pressable onPress={() => handleRemoveWeightEntry(index)}>
+                              <Trash2 size={18} color="#10B981" />
+                            </Pressable>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    <Pressable
+                      onPress={() => setShowWeightModal(true)}
+                      className="bg-emerald-500/20 border border-emerald-500/30 rounded-xl py-3 flex-row items-center justify-center active:opacity-80"
+                    >
+                      <Plus size={18} color="#10B981" />
+                      <Text className="text-emerald-400 font-medium ml-2">Add Weight Entry</Text>
+                    </Pressable>
+                  </Animated.View>
+                )}
 
                 {/* Damage Tracking */}
                 <Animated.View
@@ -1361,6 +1468,79 @@ export default function EntryFormScreen() {
               >
                 <Text className={currentSerialNo.trim() ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
                   Add Serial Number
+                </Text>
+              </Pressable>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
+
+      {/* Weight Entry Modal - for kg/weight-based items */}
+      <Modal visible={showWeightModal} transparent animationType="slide">
+        <Pressable
+          className="flex-1 bg-black/70 justify-end"
+          onPress={Keyboard.dismiss}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <Pressable
+              className="bg-slate-800 rounded-t-3xl p-6"
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-white font-bold text-lg">Add Weight Entry</Text>
+                <Pressable onPress={() => { Keyboard.dismiss(); setShowWeightModal(false); }}>
+                  <X size={24} color="#64748B" />
+                </Pressable>
+              </View>
+
+              <Text className="text-slate-400 text-sm mb-1">Current Total</Text>
+              <View className="bg-emerald-500/10 rounded-xl p-3 mb-4">
+                <Text className="text-emerald-400 text-2xl font-bold text-center">
+                  {totalWeight.toFixed(2)} {weightUnit}
+                </Text>
+              </View>
+
+              <Text className="text-slate-400 text-sm mb-2">Weight ({weightUnit}) *</Text>
+              <View className="flex-row items-center mb-4">
+                <TextInput
+                  value={currentWeight}
+                  onChangeText={setCurrentWeight}
+                  placeholder={`Enter weight in ${weightUnit}`}
+                  placeholderTextColor="#64748B"
+                  keyboardType="decimal-pad"
+                  returnKeyType="done"
+                  blurOnSubmit
+                  className="flex-1 bg-slate-900/50 rounded-xl px-4 py-3 text-white text-xl border border-slate-700"
+                />
+                <View className="bg-emerald-500 rounded-xl px-4 py-3 ml-2">
+                  <Text className="text-white font-bold">{weightUnit}</Text>
+                </View>
+              </View>
+
+              <Text className="text-slate-400 text-sm mb-2">Remarks (Optional)</Text>
+              <TextInput
+                value={currentWeightRemarks}
+                onChangeText={setCurrentWeightRemarks}
+                placeholder="e.g., Bag 1, Container A..."
+                placeholderTextColor="#64748B"
+                returnKeyType="done"
+                blurOnSubmit
+                onSubmitEditing={Keyboard.dismiss}
+                className="bg-slate-900/50 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
+              />
+
+              <Pressable
+                onPress={() => { Keyboard.dismiss(); handleAddWeightEntry(); }}
+                disabled={!currentWeight || parseFloat(currentWeight) <= 0}
+                className={cn(
+                  'rounded-xl py-4 items-center',
+                  currentWeight && parseFloat(currentWeight) > 0 ? 'bg-emerald-500 active:opacity-80' : 'bg-slate-700'
+                )}
+              >
+                <Text className={currentWeight && parseFloat(currentWeight) > 0 ? 'text-white font-bold' : 'text-slate-500 font-bold'}>
+                  Add Weight Entry
                 </Text>
               </Pressable>
             </Pressable>
