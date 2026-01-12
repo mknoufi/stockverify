@@ -77,7 +77,7 @@ export const useSyncStore = create<SyncState>()(
       erpConnected: false,
       mongoConnected: false,
       syncInterval: 5 * 60 * 1000, // 5 minutes default
-      autoSync: true,
+      autoSync: false, // Disabled by default - enable when backend is configured
       items: [],
       users: [],
       offlineOperations: [],
@@ -280,12 +280,13 @@ let netInfoUnsubscribe: (() => void) | null = null;
 
 export function startNetworkListener() {
   netInfoUnsubscribe = NetInfo.addEventListener((state) => {
-    const wasOffline = !useSyncStore.getState().isConnected;
-    useSyncStore.getState().setConnected(state.isConnected ?? false);
+    const syncState = useSyncStore.getState();
+    const wasOffline = !syncState.isConnected;
+    syncState.setConnected(state.isConnected ?? false);
 
-    // Auto-sync when coming back online
-    if (wasOffline && state.isConnected) {
-      useSyncStore.getState().syncNow();
+    // Auto-sync when coming back online (only if autoSync is enabled)
+    if (wasOffline && state.isConnected && syncState.autoSync) {
+      syncState.syncNow();
     }
   });
 }
