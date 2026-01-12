@@ -3,43 +3,31 @@ import { View, Text, Pressable, ScrollView, TextInput, Modal } from 'react-nativ
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useUserManagementStore } from '@/lib/store';
+import { useSessionStore } from '@/lib/store';
 import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   ArrowLeft,
-  Plus,
   User,
   UserCheck,
   Shield,
   Search,
-  MoreVertical,
   UserX,
   Edit2,
-  Trash2,
 } from 'lucide-react-native';
-import type { UserRole } from '@/lib/types';
+import type { UserRole, User as UserType } from '@/lib/types';
 
 export default function UsersScreen() {
   const router = useRouter();
-  const users = useUserManagementStore((s) => s.users);
-  const addUser = useUserManagementStore((s) => s.addUser);
-  const updateUser = useUserManagementStore((s) => s.updateUser);
-  const deactivateUser = useUserManagementStore((s) => s.deactivateUser);
-  const activateUser = useUserManagementStore((s) => s.activateUser);
+  const users = useSessionStore((s) => s.users);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
 
-  // Add user form
-  const [newUsername, setNewUsername] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<UserRole>('staff');
-
-  const filteredUsers = users.filter((user) => {
+  const filteredUsers = users.filter((user: UserType) => {
     const matchesSearch = searchQuery
       ? user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.username.toLowerCase().includes(searchQuery.toLowerCase())
@@ -47,31 +35,6 @@ export default function UsersScreen() {
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     return matchesSearch && matchesRole;
   });
-
-  const handleAddUser = async () => {
-    if (!newUsername.trim() || !newName.trim()) return;
-
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    addUser({
-      username: newUsername.trim().toLowerCase(),
-      name: newName.trim(),
-      role: newRole,
-      isActive: true,
-    });
-    setShowAddModal(false);
-    setNewUsername('');
-    setNewName('');
-    setNewRole('staff');
-  };
-
-  const handleToggleStatus = async (userId: string, isActive: boolean) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (isActive) {
-      deactivateUser(userId);
-    } else {
-      activateUser(userId);
-    }
-  };
 
   const getRoleIcon = (role: UserRole) => {
     switch (role) {
@@ -96,6 +59,12 @@ export default function UsersScreen() {
     { value: 'admin', label: 'Admin' },
   ];
 
+  const handleViewUser = async (user: UserType) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedUser(user);
+    setShowDetailModal(true);
+  };
+
   return (
     <View className="flex-1 bg-[#0A0F1C]">
       <LinearGradient colors={['#0A0F1C', '#111827']} style={{ flex: 1 }}>
@@ -113,12 +82,6 @@ export default function UsersScreen() {
                   </Pressable>
                   <Text className="text-white font-bold text-xl ml-3">User Management</Text>
                 </View>
-                <Pressable
-                  onPress={() => setShowAddModal(true)}
-                  className="w-10 h-10 rounded-full bg-purple-500 items-center justify-center active:opacity-80"
-                >
-                  <Plus size={20} color="#fff" />
-                </Pressable>
               </View>
             </Animated.View>
 
@@ -168,19 +131,19 @@ export default function UsersScreen() {
               <View className="flex-row gap-3">
                 <View className="flex-1 bg-blue-500/10 rounded-2xl p-4 border border-blue-500/20">
                   <Text className="text-white text-2xl font-bold">
-                    {users.filter((u) => u.role === 'staff').length}
+                    {users.filter((u: UserType) => u.role === 'staff').length}
                   </Text>
                   <Text className="text-gray-500 text-xs">Staff</Text>
                 </View>
                 <View className="flex-1 bg-amber-500/10 rounded-2xl p-4 border border-amber-500/20">
                   <Text className="text-white text-2xl font-bold">
-                    {users.filter((u) => u.role === 'supervisor').length}
+                    {users.filter((u: UserType) => u.role === 'supervisor').length}
                   </Text>
                   <Text className="text-gray-500 text-xs">Supervisors</Text>
                 </View>
                 <View className="flex-1 bg-purple-500/10 rounded-2xl p-4 border border-purple-500/20">
                   <Text className="text-white text-2xl font-bold">
-                    {users.filter((u) => u.role === 'admin').length}
+                    {users.filter((u: UserType) => u.role === 'admin').length}
                   </Text>
                   <Text className="text-gray-500 text-xs">Admins</Text>
                 </View>
@@ -193,15 +156,16 @@ export default function UsersScreen() {
                 Users ({filteredUsers.length})
               </Text>
 
-              {filteredUsers.map((user) => {
+              {filteredUsers.map((user: UserType) => {
                 const roleColors = getRoleColor(user.role);
                 const RoleIcon = getRoleIcon(user.role);
 
                 return (
-                  <View
+                  <Pressable
                     key={user.id}
+                    onPress={() => handleViewUser(user)}
                     className={cn(
-                      'bg-slate-800/50 rounded-2xl p-4 mb-3 border',
+                      'bg-slate-800/50 rounded-2xl p-4 mb-3 border active:opacity-80',
                       user.isActive ? 'border-slate-700/50' : 'border-red-500/30 opacity-60'
                     )}
                   >
@@ -226,141 +190,76 @@ export default function UsersScreen() {
                         </Text>
                       </View>
                     </View>
-
-                    <View className="flex-row gap-2 mt-3 pt-3 border-t border-slate-700/50">
-                      <Pressable
-                        onPress={() => handleToggleStatus(user.id, user.isActive)}
-                        className={cn(
-                          'flex-1 rounded-xl py-2.5 items-center flex-row justify-center',
-                          user.isActive ? 'bg-red-500/10 border border-red-500/30' : 'bg-green-500/10 border border-green-500/30'
-                        )}
-                      >
-                        {user.isActive ? (
-                          <UserX size={16} color="#EF4444" />
-                        ) : (
-                          <UserCheck size={16} color="#22C55E" />
-                        )}
-                        <Text className={cn('font-medium ml-2', user.isActive ? 'text-red-400' : 'text-green-400')}>
-                          {user.isActive ? 'Deactivate' : 'Activate'}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => {
-                          setEditingUser(user.id);
-                          setNewUsername(user.username);
-                          setNewName(user.name);
-                          setNewRole(user.role);
-                          setShowAddModal(true);
-                        }}
-                        className="flex-1 bg-slate-700/50 rounded-xl py-2.5 items-center flex-row justify-center"
-                      >
-                        <Edit2 size={16} color="#9CA3AF" />
-                        <Text className="text-gray-400 font-medium ml-2">Edit</Text>
-                      </Pressable>
-                    </View>
-                  </View>
+                  </Pressable>
                 );
               })}
+
+              {filteredUsers.length === 0 && (
+                <View className="bg-slate-800/50 rounded-2xl p-8 items-center border border-slate-700/50">
+                  <User size={48} color="#64748B" />
+                  <Text className="text-white font-semibold text-lg mt-4">No Users Found</Text>
+                  <Text className="text-gray-400 text-sm mt-1 text-center">
+                    Try adjusting your search or filter
+                  </Text>
+                </View>
+              )}
             </Animated.View>
           </ScrollView>
         </SafeAreaView>
       </LinearGradient>
 
-      {/* Add/Edit User Modal */}
-      <Modal visible={showAddModal} transparent animationType="slide">
+      {/* User Detail Modal */}
+      <Modal visible={showDetailModal} transparent animationType="slide">
         <View className="flex-1 bg-black/60 justify-end">
           <View className="bg-slate-900 rounded-t-3xl p-6">
-            <Text className="text-white font-bold text-xl mb-6">
-              {editingUser ? 'Edit User' : 'Add New User'}
-            </Text>
-
-            <Text className="text-gray-400 text-sm mb-2">Username *</Text>
-            <TextInput
-              value={newUsername}
-              onChangeText={setNewUsername}
-              placeholder="Enter username"
-              placeholderTextColor="#64748B"
-              autoCapitalize="none"
-              className="bg-slate-800 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
-            />
-
-            <Text className="text-gray-400 text-sm mb-2">Full Name *</Text>
-            <TextInput
-              value={newName}
-              onChangeText={setNewName}
-              placeholder="Enter full name"
-              placeholderTextColor="#64748B"
-              className="bg-slate-800 rounded-xl px-4 py-3 text-white border border-slate-700 mb-4"
-            />
-
-            <Text className="text-gray-400 text-sm mb-2">Role *</Text>
-            <View className="flex-row gap-2 mb-6">
-              {(['staff', 'supervisor', 'admin'] as UserRole[]).map((role) => {
-                const colors = getRoleColor(role);
-                return (
-                  <Pressable
-                    key={role}
-                    onPress={() => setNewRole(role)}
-                    className={cn(
-                      'flex-1 py-3 rounded-xl items-center border',
-                      newRole === role
-                        ? `${colors.bg} border-transparent`
-                        : 'bg-slate-800 border-slate-700'
-                    )}
-                  >
-                    <Text
-                      className={cn(
-                        'font-medium capitalize',
-                        newRole === role ? colors.text : 'text-gray-400'
-                      )}
-                    >
-                      {role}
+            {selectedUser && (
+              <>
+                <View className="items-center mb-6">
+                  <View className={cn('w-20 h-20 rounded-2xl items-center justify-center mb-3', getRoleColor(selectedUser.role).bg)}>
+                    {(() => {
+                      const RoleIcon = getRoleIcon(selectedUser.role);
+                      return <RoleIcon size={40} color={getRoleColor(selectedUser.role).color} />;
+                    })()}
+                  </View>
+                  <Text className="text-white font-bold text-xl">{selectedUser.name}</Text>
+                  <Text className="text-gray-400">@{selectedUser.username}</Text>
+                  <View className={cn('mt-2 px-4 py-1 rounded-full', getRoleColor(selectedUser.role).bg)}>
+                    <Text className={cn('font-semibold capitalize', getRoleColor(selectedUser.role).text)}>
+                      {selectedUser.role}
                     </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+                  </View>
+                </View>
 
-            <View className="flex-row gap-3">
-              <Pressable
-                onPress={() => {
-                  setShowAddModal(false);
-                  setEditingUser(null);
-                  setNewUsername('');
-                  setNewName('');
-                  setNewRole('staff');
-                }}
-                className="flex-1 bg-slate-800 rounded-xl py-4 items-center active:opacity-80"
-              >
-                <Text className="text-white font-semibold">Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  if (editingUser) {
-                    updateUser(editingUser, {
-                      username: newUsername.trim().toLowerCase(),
-                      name: newName.trim(),
-                      role: newRole,
-                    });
-                    setShowAddModal(false);
-                    setEditingUser(null);
-                    setNewUsername('');
-                    setNewName('');
-                    setNewRole('staff');
-                  } else {
-                    handleAddUser();
-                  }
-                }}
-                className={cn(
-                  'flex-1 rounded-xl py-4 items-center active:opacity-80',
-                  newUsername.trim() && newName.trim() ? 'bg-purple-500' : 'bg-purple-500/50'
-                )}
-              >
-                <Text className="text-white font-semibold">
-                  {editingUser ? 'Update' : 'Add User'}
-                </Text>
-              </Pressable>
-            </View>
+                <View className="bg-slate-800/50 rounded-xl p-4 mb-4">
+                  <View className="flex-row justify-between mb-3">
+                    <Text className="text-gray-400">Status</Text>
+                    <Text className={selectedUser.isActive ? 'text-green-400' : 'text-red-400'}>
+                      {selectedUser.isActive ? 'Active' : 'Inactive'}
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between mb-3">
+                    <Text className="text-gray-400">User ID</Text>
+                    <Text className="text-white">{selectedUser.id}</Text>
+                  </View>
+                  {selectedUser.lastLoginAt && (
+                    <View className="flex-row justify-between">
+                      <Text className="text-gray-400">Last Login</Text>
+                      <Text className="text-white">{selectedUser.lastLoginAt}</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Pressable
+                  onPress={() => {
+                    setShowDetailModal(false);
+                    setSelectedUser(null);
+                  }}
+                  className="bg-slate-800 rounded-xl py-4 items-center active:opacity-80"
+                >
+                  <Text className="text-white font-semibold">Close</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         </View>
       </Modal>
