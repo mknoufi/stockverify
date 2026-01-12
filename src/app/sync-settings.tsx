@@ -35,14 +35,18 @@ export default function SyncSettingsScreen() {
   const lastError = useSyncStore((s) => s.lastError);
   const isSyncing = useSyncStore((s) => s.isSyncing);
   const isConnected = useSyncStore((s) => s.isConnected);
+  const erpConnected = useSyncStore((s) => s.erpConnected);
+  const mongoConnected = useSyncStore((s) => s.mongoConnected);
   const syncInterval = useSyncStore((s) => s.syncInterval);
   const autoSync = useSyncStore((s) => s.autoSync);
   const items = useSyncStore((s) => s.items);
   const users = useSyncStore((s) => s.users);
-  const pendingChanges = useSyncStore((s) => s.pendingChanges);
+  const offlineOperations = useSyncStore((s) => s.offlineOperations);
   const setSyncInterval = useSyncStore((s) => s.setSyncInterval);
   const setAutoSync = useSyncStore((s) => s.setAutoSync);
   const syncNow = useSyncStore((s) => s.syncNow);
+
+  const pendingChanges = offlineOperations.filter((op) => !op.synced).length;
 
   const handleSyncNow = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -171,6 +175,23 @@ export default function SyncSettingsScreen() {
                     {isConnected ? 'Connected to network' : 'Offline'}
                   </Text>
                 </View>
+
+                {isConnected && (
+                  <View className="flex-row gap-3 mb-3">
+                    <View className={`flex-row items-center px-3 py-1.5 rounded-full ${erpConnected ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                      <Database size={12} color={erpConnected ? '#22C55E' : '#EF4444'} />
+                      <Text className={`text-xs ml-1.5 ${erpConnected ? 'text-green-400' : 'text-red-400'}`}>
+                        SQL Server
+                      </Text>
+                    </View>
+                    <View className={`flex-row items-center px-3 py-1.5 rounded-full ${mongoConnected ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                      <Database size={12} color={mongoConnected ? '#22C55E' : '#EF4444'} />
+                      <Text className={`text-xs ml-1.5 ${mongoConnected ? 'text-green-400' : 'text-red-400'}`}>
+                        MongoDB
+                      </Text>
+                    </View>
+                  </View>
+                )}
 
                 <View className="flex-row items-center mb-4">
                   <Clock size={18} color="#64748B" />

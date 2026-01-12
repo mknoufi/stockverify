@@ -102,45 +102,52 @@ A professional stock verification and inventory audit mobile app built with Expo
 
 ## Database Sync Configuration
 
-The app syncs with a local SQL database via REST API. Configure your database endpoint:
+The app syncs with the STOCK_VERIFY backend which connects to SQL Server for ERP data.
+
+### Backend Setup
+
+The backend repository is available at: https://github.com/mknoufi/STOCK_VERIFY_ui
+
+1. Clone and run the backend (runs on port 8001)
+2. Configure SQL Server connection in backend `config.py`
+3. The backend uses MongoDB for session/count data storage
+
+### App Configuration
 
 1. Go to the **ENV tab** in Vibecode
-2. Add: `EXPO_PUBLIC_API_BASE_URL=http://YOUR_SERVER_IP:PORT/api`
-3. Example: `EXPO_PUBLIC_API_BASE_URL=http://192.168.1.100:3000/api`
+2. Add: `EXPO_PUBLIC_API_BASE_URL=http://YOUR_SERVER_IP:8001/api`
+3. Example: `EXPO_PUBLIC_API_BASE_URL=http://192.168.1.109:8001/api`
 
-### Expected API Endpoints
-
-Your backend should provide these endpoints:
+### Backend API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check |
-| `/items` | GET | Get all items |
-| `/items/:id` | GET | Get single item |
-| `/items/search?q=` | GET | Search items |
-| `/items/barcode/:code` | GET | Get by barcode |
-| `/users` | GET | Get all users |
-| `/auth/login` | POST | Authenticate user |
-| `/sessions` | GET/POST | List/create sessions |
-| `/sessions/:id` | PATCH | Update session |
-| `/entries` | GET/POST | List/create entries |
-| `/entries/:id` | PATCH | Update entry |
-| `/sync/status` | GET | Get sync status |
-| `/sync/upload` | POST | Upload offline changes |
-| `/sync/download?since=` | GET | Download changes since timestamp |
+| `/api/erp/items` | GET | Get items from SQL Server |
+| `/api/erp/items/barcode/:code` | GET | Get item by barcode |
+| `/api/erp/stock` | GET/POST | Get stock levels |
+| `/api/sessions` | GET/POST | List/create sessions |
+| `/api/entries` | GET/POST | List/create count entries |
+| `/api/sync/batch` | POST | Batch sync offline data |
+| `/api/sync/status` | GET | Get sync & connection status |
+| `/api/users` | GET/POST | User management |
+| `/api/variance/report` | GET | Variance reports |
+| `/api/logs/activity` | GET | Activity logs |
 
 ### Sync Settings
 
-Access sync settings from the dashboard or when offline. Configure:
+Access sync settings from the dashboard. Configure:
 - **Auto Sync**: Enable/disable automatic sync
 - **Sync Interval**: 1 min, 5 min, 15 min, 30 min, or 1 hour
 - **Manual Sync**: Force sync anytime
+- **Connection Status**: View SQL Server and MongoDB connection status
 
 ### Offline Support
 
 - App works fully offline with local storage
-- Changes are queued and synced when connection restored
-- Visual indicators show sync status and pending changes
+- Sessions and count entries are queued for batch sync
+- ID mapping maintains relationships between offline and server IDs
+- Changes sync automatically when connection restored
 
 ## Tech Stack
 - Expo SDK 53

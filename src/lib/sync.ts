@@ -1,11 +1,11 @@
 /**
- * Sync Manager - Handles data synchronization with SQL database
+ * Sync Manager - Handles data synchronization with STOCK_VERIFY Backend
  *
  * Features:
  * - Interval-based sync (configurable)
- * - Offline queue processing
- * - Conflict detection
- * - Background sync
+ * - Offline queue processing with batch sync
+ * - ERP data sync (items from SQL Server)
+ * - Background sync with network monitoring
  */
 
 import { create } from 'zustand';
@@ -17,6 +17,15 @@ import type { Item, User } from './types';
 
 export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'offline';
 
+interface OfflineOperation {
+  id: string;
+  type: 'session' | 'count_line';
+  offline_id: string;
+  data: Record<string, unknown>;
+  timestamp: string;
+  synced: boolean;
+}
+
 interface SyncState {
   // Status
   status: SyncStatus;
@@ -24,6 +33,10 @@ interface SyncState {
   lastError: string | null;
   isSyncing: boolean;
   isConnected: boolean;
+
+  // Backend connection status
+  erpConnected: boolean;
+  mongoConnected: boolean;
 
   // Sync settings
   syncInterval: number; // in milliseconds
@@ -33,8 +46,11 @@ interface SyncState {
   items: Item[];
   users: User[];
 
-  // Pending changes count
-  pendingChanges: number;
+  // Offline operations queue
+  offlineOperations: OfflineOperation[];
+
+  // ID mappings (offline_id -> server_id)
+  idMappings: Record<string, string>;
 
   // Actions
   setSyncInterval: (interval: number) => void;
@@ -42,10 +58,11 @@ interface SyncState {
   setConnected: (connected: boolean) => void;
   syncNow: () => Promise<void>;
   downloadData: () => Promise<void>;
-  uploadChanges: () => Promise<void>;
+  uploadOfflineData: () => Promise<void>;
   updateItems: (items: Item[]) => void;
   updateUsers: (users: User[]) => void;
-  setPendingChanges: (count: number) => void;
+  addOfflineOperation: (op: Omit<OfflineOperation, 'id' | 'synced'>) => void;
+  getServerIdForOfflineId: (offlineId: string) => string | undefined;
 }
 
 export const useSyncStore = create<SyncState>()(
@@ -57,11 +74,14 @@ export const useSyncStore = create<SyncState>()(
       lastError: null,
       isSyncing: false,
       isConnected: true,
+      erpConnected: false,
+      mongoConnected: false,
       syncInterval: 5 * 60 * 1000, // 5 minutes default
       autoSync: true,
       items: [],
       users: [],
-      pendingChanges: 0,
+      offlineOperations: [],
+      idMappings: {},
 
       setSyncInterval: (interval) => set({ syncInterval: interval }),
       setAutoSync: (enabled) => set({ autoSync: enabled }),
@@ -71,7 +91,7 @@ export const useSyncStore = create<SyncState>()(
         const state = get();
         if (state.isSyncing) return;
 
-        set({ isSyncing: true, status: 'syncing' });
+        set({ isSyncing: true, status: 'syncing', lastError: null });
 
         try {
           // Check connection
@@ -83,11 +103,26 @@ export const useSyncStore = create<SyncState>()(
 
           set({ isConnected: true });
 
-          // Download latest data
-          await get().downloadData();
+          // Check backend health
+          const isHealthy = await api.checkHealth();
+          if (!isHealthy) {
+            throw new Error('Backend server is not reachable');
+          }
 
-          // Upload pending changes
-          await get().uploadChanges();
+          // Get sync status from backend
+          const syncStatus = await api.getSyncStatus();
+          if (syncStatus.success && syncStatus.data) {
+            set({
+              erpConnected: syncStatus.data.erp_connected,
+              mongoConnected: syncStatus.data.mongodb_connected,
+            });
+          }
+
+          // Upload offline data first
+          await get().uploadOfflineData();
+
+          // Then download latest data
+          await get().downloadData();
 
           set({
             status: 'success',
@@ -103,13 +138,13 @@ export const useSyncStore = create<SyncState>()(
 
       downloadData: async () => {
         try {
-          // Fetch items from database
-          const itemsResponse = await api.getItems();
+          // Fetch items from ERP (SQL Server via backend)
+          const itemsResponse = await api.getItems({ limit: 1000 });
           if (itemsResponse.success && itemsResponse.data) {
             set({ items: itemsResponse.data });
           }
 
-          // Fetch users from database
+          // Fetch users
           const usersResponse = await api.getUsers();
           if (usersResponse.success && usersResponse.data) {
             set({ users: usersResponse.data });
@@ -120,15 +155,80 @@ export const useSyncStore = create<SyncState>()(
         }
       },
 
-      uploadChanges: async () => {
-        // This will be called to upload any pending offline changes
-        // The actual implementation depends on your offline queue structure
-        set({ pendingChanges: 0 });
+      uploadOfflineData: async () => {
+        const state = get();
+        const pendingOps = state.offlineOperations.filter((op) => !op.synced);
+
+        if (pendingOps.length === 0) return;
+
+        try {
+          // Sort by timestamp to maintain order
+          const sortedOps = [...pendingOps].sort(
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+
+          // Convert to batch sync format
+          const operations = sortedOps.map((op) => ({
+            type: op.type,
+            offline_id: op.offline_id,
+            data: op.data,
+            timestamp: op.timestamp,
+          }));
+
+          const response = await api.batchSync(operations);
+
+          if (response.success && response.data) {
+            const newMappings = { ...state.idMappings };
+            const updatedOps = state.offlineOperations.map((op) => {
+              const result = response.data?.results.find((r) => r.offline_id === op.offline_id);
+              if (result?.success) {
+                // Store ID mapping
+                if (result.server_id) {
+                  newMappings[op.offline_id] = result.server_id;
+                }
+                return { ...op, synced: true };
+              }
+              return op;
+            });
+
+            set({
+              offlineOperations: updatedOps,
+              idMappings: newMappings,
+            });
+
+            // Clean up synced operations older than 24 hours
+            const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+            set({
+              offlineOperations: updatedOps.filter(
+                (op) => !op.synced || new Date(op.timestamp).getTime() > dayAgo
+              ),
+            });
+          }
+        } catch (error) {
+          console.error('Upload failed:', error);
+          throw error;
+        }
       },
 
       updateItems: (items) => set({ items }),
       updateUsers: (users) => set({ users }),
-      setPendingChanges: (count) => set({ pendingChanges: count }),
+
+      addOfflineOperation: (op) => {
+        set((state) => ({
+          offlineOperations: [
+            ...state.offlineOperations,
+            {
+              ...op,
+              id: Date.now().toString(),
+              synced: false,
+            },
+          ],
+        }));
+      },
+
+      getServerIdForOfflineId: (offlineId) => {
+        return get().idMappings[offlineId];
+      },
     }),
     {
       name: 'sync-storage',
@@ -139,6 +239,8 @@ export const useSyncStore = create<SyncState>()(
         autoSync: state.autoSync,
         items: state.items,
         users: state.users,
+        offlineOperations: state.offlineOperations,
+        idMappings: state.idMappings,
       }),
     }
   )
@@ -183,6 +285,7 @@ export function startNetworkListener() {
 
     // Auto-sync when coming back online
     if (wasOffline && state.isConnected) {
+      console.log('Network restored, starting sync...');
       useSyncStore.getState().syncNow();
     }
   });
