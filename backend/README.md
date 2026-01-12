@@ -1,151 +1,141 @@
-# Stock Verify Backend
+# Stock Verify Backend API
 
-FastAPI backend for the Stock Verify mobile app. Connects to SQL Server for ERP data and MongoDB for session/count storage.
+Backend server for the Stock Verification System with ngrok tunnel support.
 
-## Quick Start
+## Quick Setup
 
-### Windows
-```batch
-# Run setup
-setup.bat
+See `QUICK_START.md` for the fastest setup guide.
 
-# Activate virtual environment
-venv\Scripts\activate
+## Detailed Setup
 
-# Edit .env with your SQL Server credentials
-notepad .env
+1. **Install dependencies:**
+   ```bash
+   cd backend
+   bun install
+   ```
 
-# Start server
-python main.py
-```
+2. **Setup environment:**
+   ```bash
+   bun run setup
+   ```
+   This creates `.env.production` with all configuration.
 
-### Linux/Mac
-```bash
-# Make setup script executable
-chmod +x setup.sh
+3. **Configure (Optional):**
+   Edit `.env.production` and update:
+   - Database credentials (if using SQL Server)
+   - Security secrets (JWT_SECRET, PIN_ENCRYPTION_KEY, SESSION_SECRET)
+   - Ngrok auth token (if using authenticated ngrok)
 
-# Run setup
-./setup.sh
+4. **Start the backend server:**
+   ```bash
+   # With environment variables
+   bun run start:env
+   
+   # Or without (uses defaults)
+   bun run start
+   ```
+   Server will run on `http://localhost:3000`
 
-# Activate virtual environment
-source venv/bin/activate
-
-# Edit .env with your SQL Server credentials
-nano .env
-
-# Start server
-python main.py
-```
-
-## Configuration
-
-Edit `.env` file with your settings:
-
-```env
-# SQL Server Configuration
-SQL_SERVER_HOST=localhost          # Your SQL Server IP/hostname
-SQL_SERVER_PORT=1433               # SQL Server port
-SQL_SERVER_DATABASE=YourERPDatabase # Your database name
-SQL_SERVER_USER=sa                 # SQL Server username
-SQL_SERVER_PASSWORD=YourPassword123 # SQL Server password
-
-# MongoDB Configuration
-MONGODB_URI=mongodb://localhost:27017
-MONGODB_DATABASE=stock_verify
-
-# Table names (customize based on your ERP schema)
-ITEMS_TABLE=Items                  # Your items table name
-STOCK_TABLE=Stock                  # Your stock table name
-```
-
-## Customize SQL Queries
-
-Edit `main.py` and update the `get_items_from_sql()` function to match your SQL Server schema:
-
-```python
-def get_items_from_sql() -> List[dict]:
-    query = f"""
-        SELECT
-            CAST(YourItemID AS VARCHAR) as id,
-            YourItemCode as item_code,
-            YourItemName as name,
-            YourBarcode as barcode,
-            YourCategory as category,
-            YourMRP as mrp,
-            YourStock as system_stock,
-            YourUOM as uom
-        FROM {settings.ITEMS_TABLE}
-        WHERE IsActive = 1
-    """
-    results = execute_query(query)
-    return results
-```
-
-## Expose with ngrok (for cloud app access)
-
-1. Install ngrok: https://ngrok.com/download
-
-2. Authenticate:
-```bash
-ngrok config add-authtoken YOUR_AUTH_TOKEN
-```
-
-3. Start tunnel:
-```bash
-ngrok http 8001
-```
-
-4. Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
-
-5. In Vibecode app, go to **ENV tab** and set:
-```
-EXPO_PUBLIC_API_BASE_URL=https://abc123.ngrok-free.app/api
-```
+5. **Start with ngrok tunnel:**
+   ```bash
+   bun run tunnel
+   ```
+   This will:
+   - Start the backend server on port 3000
+   - Start ngrok tunnel
+   - Display the ngrok public URL
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/api/erp/items` | GET | Get items from SQL Server |
-| `/api/erp/items/barcode/{code}` | GET | Get item by barcode |
-| `/api/erp/stock` | GET | Get stock levels |
-| `/api/sessions` | GET/POST | List/create sessions |
-| `/api/sessions/{id}` | GET/PATCH | Get/update session |
-| `/api/entries` | POST | Create entry |
-| `/api/entries/{id}` | PATCH | Update entry |
-| `/api/sync/batch` | POST | Batch sync offline data |
-| `/api/sync/status` | GET | Connection status |
-| `/api/users` | GET/POST | User management |
-| `/api/variance/report` | GET | Variance reports |
+### Health Check
+- `GET /health` - Server health check
 
-## Test the API
+### Authentication
+- `POST /api/auth/login` - Login with username/password or PIN
 
-```bash
-# Health check
-curl http://localhost:8001/health
+### Items
+- `GET /api/items` - Get all items
+- `GET /api/items/search?q=query` - Search items (prefix-based routing)
+- `GET /api/items/barcode/:barcode` - Get item by barcode
+- `GET /api/items/:id` - Get item by ID
 
-# Get items
-curl http://localhost:8001/api/erp/items
+### Sessions
+- `GET /api/sessions` - Get sessions (with optional userId, status filters)
+- `POST /api/sessions` - Create new session
+- `PUT /api/sessions/:id` - Update session
+- `POST /api/sessions/:id/submit` - Submit session for verification
 
-# Get sync status
-curl http://localhost:8001/api/sync/status
-```
+### Entries
+- `GET /api/entries` - Get entries (with optional sessionId, verificationStatus filters)
+- `POST /api/entries` - Create new entry
+- `PUT /api/entries/:id` - Update entry
+- `POST /api/entries/:id/approve` - Approve entry (Supervisor)
+- `POST /api/entries/:id/reject` - Reject entry (Supervisor)
+- `POST /api/entries/:id/recount` - Request re-count (Supervisor)
 
-## Troubleshooting
+### Dashboard
+- `GET /api/dashboard/stats?userId=:id&userRole=:role` - Get dashboard statistics
 
-### SQL Server Connection Failed
-1. Check SQL Server is running
-2. Enable TCP/IP in SQL Server Configuration Manager
-3. Check firewall allows port 1433
-4. Verify credentials in `.env`
+### Verifications
+- `GET /api/verifications/pending` - Get pending verifications (Supervisor/Admin)
 
-### MongoDB Connection Failed
-1. Install MongoDB: https://www.mongodb.com/try/download/community
-2. Start MongoDB service
-3. Check port 27017 is available
+### Users
+- `GET /api/users` - Get all users
+- `GET /api/users/:id` - Get user by ID
 
-### ODBC Driver Missing
-- Windows: Download from Microsoft
-- Ubuntu: `sudo apt install unixodbc-dev`
-- Mac: `brew install unixodbc freetds`
+## Ngrok Setup
+
+1. **Get ngrok URL:**
+   After starting the tunnel, check the ngrok dashboard at `http://localhost:4040` or use:
+   ```bash
+   curl http://localhost:4040/api/tunnels
+   ```
+
+2. **Update app configuration:**
+   Update `app.json` with your ngrok URL:
+   ```json
+   {
+     "expo": {
+       "extra": {
+         "apiUrl": "https://your-ngrok-url.ngrok.io"
+       }
+     }
+   }
+   ```
+
+   Or set environment variable:
+   ```bash
+   export EXPO_PUBLIC_API_URL=https://your-ngrok-url.ngrok.io
+   ```
+
+## Environment Configuration
+
+All configuration is managed through `.env.production`. Run `bun run setup` to create it.
+
+Key configuration areas:
+- **Server:** PORT, NODE_ENV, HOST
+- **Database:** DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+- **Security:** JWT_SECRET, PIN_ENCRYPTION_KEY, SESSION_SECRET
+- **Ngrok:** NGROK_AUTH_TOKEN, NGROK_REGION, NGROK_DOMAIN
+- **Features:** Enable/disable various features via flags
+
+See `.env.production` for complete configuration options.
+
+## Configuration System
+
+The backend uses `config.js` to load all environment variables with sensible defaults. Configuration is organized into logical sections:
+- Server, API, Database
+- Authentication & Security
+- Device Management
+- Stock Verification
+- RBAC, Logging, Caching
+- And more...
+
+## Notes
+
+- The backend uses in-memory storage (sessions, entries, items)
+- In production, replace with SQL Server database connection
+- Ngrok free tier has session limits - consider paid plan for production
+- For LAN-only deployment, use local IP instead of ngrok
+- Always change default secrets in production
+- See `QUICK_START.md` for fastest setup

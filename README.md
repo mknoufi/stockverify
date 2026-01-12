@@ -1,237 +1,78 @@
 # StockVerify - Inventory Audit System
 
-A professional stock verification and inventory audit mobile app built with Expo SDK 53 and React Native for Lavanya Emart.
-
-## Role-Based Access
-
-### Staff Role
-- Create and manage stock counting sessions
-- Scan barcodes and search items
-- Enter counted quantities with variance tracking
-- Add serial numbers, conditions, dates
-- Submit sessions for supervisor verification
-
-### Supervisor Role
-- Review pending verification sessions
-- Approve or reject individual entries
-- Request re-counts with reason and reassignment
-- View staff productivity metrics
-- Access reports and analytics
-
-### Admin Role
-- Full system access
-- User management (add, edit, activate/deactivate)
-- Audit log viewer with filtering
-- System-wide reports and analytics
-- All supervisor capabilities
+A professional stock verification and inventory audit mobile app built with Expo SDK 53 and React Native.
 
 ## Features
 
 ### Authentication
-- Role-based login (Staff, Supervisor, Admin)
+- Welcome screen with app introduction
+- Login with username/password
 - PIN-based quick login
-- User session management
-- Automatic role-based routing
+- Biometric authentication support (simulated)
+- User registration with PIN setup
 
-### Dashboard (Role-Aware)
-- Role-specific summary cards
-- Quick actions based on user role
-- Overview stats with variance analysis
-- Active sessions (Staff) / Pending verifications (Supervisor/Admin)
-- Recent activity feed
-- Offline sync status banner
+### Dashboard (Upgraded)
+- Today's summary card with date and accuracy rate
+- Quick actions grid: New Session, Sessions, Reports, Analytics
+- Overview stats: Total Scanned, Verified, Racks Done
+- Variance analysis with visual progress bar
+- Active sessions with live status indicators
+- Recent activity feed showing latest entries
+- Modern gradient design with animations
+
+### Analytics Screen (New)
+- Time filter: 7 Days, 30 Days, All Time
+- Accuracy score card with percentage
+- Weekly activity bar chart
+- Key metrics: Total Scanned, Sessions Done, Avg/Day
+- Variance breakdown with progress bars
+- Location statistics: Showroom vs Godown
+
+### Reports Screen (New)
+- Summary Report: Overall performance overview
+- Variance Report: Short, over & matched items
+- Sessions Report: All session details
+- Detailed Report: Complete item-level data
+- Share reports via native share sheet
+- Quick stats overview
+- Recent variances list
+
+### Session Management (Upgraded)
+- Search by rack number or location
+- Filter by status: All, Active, Completed
+- Filter by location: All, Showroom, Godown
+- Animated session cards with gradient icons
+- Live status indicators for active sessions
+- Quick resume and complete actions
+- Empty state with contextual actions
 
 ### Item Scanning & Search
 - Barcode scanner with camera
-- **Prefix-based routing:**
-  - 51/52/53 prefix → Barcode search only
-  - Other prefixes → Name search
-- Visual search mode indicator
-- Quick item lookup
-
-### Item Details Page
-- Basic Info: Name, Code, Barcode, Category, Brand
-- Pricing: MRP, Sale Price, Tax Classification, HSN
-- Stock Info: System Stock, UOM, Variants
-- Serial Number Support: Active, Damaged, Missing status
-- Damage tracking with categories and remarks
-- Last verified date and user
+- Search by item name (min 3 characters)
+- Search by barcode number
+- View item details and system stock
 
 ### Stock Entry
 - Quantity counter with +/- buttons
-- Real-time variance calculation (Short/Matched/Over)
-- Item condition: New, Aged, Issue
+- Real-time variance calculation
+- Variance color coding:
+  - Red: Short (negative variance)
+  - Green: Matched (zero variance)
+  - Yellow/Amber: Over (positive variance)
+- Item condition selection: New, Aged, Issue
+- Issue details entry
 - MRP editing option
-- Manufacturing/Expiry date tracking (flexible formats)
-- Serial number capture
+- Manufacturing date (Year only, Month/Year, Full date)
+- Expiry date tracking
+- Serial number entry for serialized items
 - Bundle item support
 - Remarks/notes
-- **Location in Rack**: Specify shelf, bin, or exact position
-- **Multi-Location Detection**: Warns when item exists in other sessions
-- **Duplicate Scan Detection**: Prevents same item/same location duplicates with options to:
-  - Update existing entry
-  - Add as different location
-  - Cancel
-- **Batch Management**: Track multiple batches of same item with:
-  - Batch number
-  - Quantity per batch
-  - Manufacturing date
-  - Expiry date
-- **Damage Tracking**: Record damaged items with:
-  - Damage quantity
-  - Category (Transit, Handling, Customer Return, Storage, Unknown)
-  - Remarks/description
-  - Photo evidence
-- **Photo Upload**: Capture item photos via camera or gallery
-- **Box Counting**: For items packed in boxes
-  - Enable/disable box counting mode
-  - Add multiple boxes with box number
-  - Count items per box
-  - Mark partial boxes
-  - Auto-calculate total quantity from boxes
-  - Remarks per box
-- **Enhanced Serial Number Tracking**: For serialized items
-  - Add serial numbers with status (Active, Damaged, Missing)
-  - Track condition per serial
-  - Damage category and remarks for damaged serials
-  - Auto-update counted quantity from serial entries
-  - Visual status indicators (green=OK, red=Damaged, amber=Missing)
 
-### Verification Workflow (Supervisor/Admin)
-- Session-level review with all entries
-- Entry-by-entry approval/rejection
-- Rejection modal with:
-  - Reason selection
-  - Reassignment to staff member
-  - Supervisor remarks
-- Batch approve/reject all entries
-- Re-count notification to assigned staff
-
-### Session Checkout
-- Accuracy score display (color-coded)
-- Total items counted summary
-- Variance breakdown:
-  - Short items count and value
-  - Over items count and value
-  - Net variance calculation
-- Detailed variance list with item-level info
-- Share report via native share sheet
-- Role-based actions:
-  - Staff: Submit for Verification
-  - Supervisor/Admin: Complete Session
-- Continue counting option
-
-### Offline Support
-- Offline banner on dashboard
-- Local data storage with Zustand + AsyncStorage
-- Offline queue for entries
-- Sync when connection restored
-- Visual sync status indicators
-
-### Admin Features
-- User Management screen
-- Add new users with role assignment
-- Activate/Deactivate users
-- Audit Log viewer
-- Filter by action type
-- Full activity history
-
-### Reports & Analytics
-- Summary Report: Overall performance
-- Variance Report: Short, over & matched items
-- Sessions Report: All session details
-- Time-based filtering (7 Days, 30 Days, All Time)
-- Accuracy metrics
-- Location-based statistics
-
-## Database Sync Configuration
-
-The app syncs with the backend which connects to SQL Server for ERP data.
-
-### Backend Setup (Included in /backend folder)
-
-The backend is included in this project under the `/backend` folder.
-
-#### Windows Setup:
-```batch
-cd backend
-setup.bat
-```
-
-#### Linux/Mac Setup:
-```bash
-cd backend
-chmod +x setup.sh
-./setup.sh
-```
-
-#### Manual Setup:
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-pip install -r requirements.txt
-cp .env.example .env
-# Edit .env with your SQL Server credentials
-python main.py
-```
-
-### Configure SQL Server Connection
-
-Edit `backend/.env`:
-```env
-SQL_SERVER_HOST=localhost
-SQL_SERVER_PORT=1433
-SQL_SERVER_DATABASE=YourERPDatabase
-SQL_SERVER_USER=sa
-SQL_SERVER_PASSWORD=YourPassword123
-```
-
-### Expose Backend with ngrok (for cloud app)
-
-1. Install ngrok: https://ngrok.com/download
-2. Start tunnel:
-```bash
-ngrok http 8001
-```
-3. Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
-
-### App Configuration
-
-1. Go to the **ENV tab** in Vibecode
-2. Add: `EXPO_PUBLIC_API_BASE_URL=https://YOUR_NGROK_URL/api`
-3. Example: `EXPO_PUBLIC_API_BASE_URL=https://abc123.ngrok-free.app/api`
-
-### Backend API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/api/erp/items` | GET | Get items from SQL Server |
-| `/api/erp/items/barcode/:code` | GET | Get item by barcode |
-| `/api/erp/stock` | GET/POST | Get stock levels |
-| `/api/sessions` | GET/POST | List/create sessions |
-| `/api/entries` | GET/POST | List/create count entries |
-| `/api/sync/batch` | POST | Batch sync offline data |
-| `/api/sync/status` | GET | Get sync & connection status |
-| `/api/users` | GET/POST | User management |
-| `/api/variance/report` | GET | Variance reports |
-| `/api/logs/activity` | GET | Activity logs |
-
-### Sync Settings
-
-Access sync settings from the dashboard. Configure:
-- **Auto Sync**: Enable/disable automatic sync
-- **Sync Interval**: 1 min, 5 min, 15 min, 30 min, or 1 hour
-- **Manual Sync**: Force sync anytime
-- **Connection Status**: View SQL Server and MongoDB connection status
-
-### Offline Support
-
-- App works fully offline with local storage
-- Sessions and count entries are queued for batch sync
-- ID mapping maintains relationships between offline and server IDs
-- Changes sync automatically when connection restored
+### Confirmation Flow
+- Review all entered data before submission
+- Visual variance indicator
+- Edit or confirm entry
+- Data stored in backend (Zustand + AsyncStorage)
 
 ## Tech Stack
 - Expo SDK 53
@@ -241,67 +82,160 @@ Access sync settings from the dashboard. Configure:
 - React Query for async operations
 - expo-camera for barcode scanning
 - react-native-reanimated for animations
-- @react-native-community/netinfo for network status
-- expo-image-picker for photo capture
 - lucide-react-native for icons
 - date-fns for date formatting
 
 ## Project Structure
 ```
 src/
-├── app/
-│   ├── _layout.tsx              # Root layout with all routes
-│   ├── index.tsx                # Welcome screen
-│   ├── login.tsx                # Login/Register (role-based)
-│   ├── dashboard.tsx            # Role-aware dashboard
-│   ├── analytics.tsx            # Analytics & insights
-│   ├── reports.tsx              # Reports & export
-│   ├── create-session.tsx       # New session wizard
-│   ├── sessions.tsx             # Session list
-│   ├── scan.tsx                 # Item search with prefix routing
-│   ├── item-detail.tsx          # Comprehensive item details
-│   ├── entry-form.tsx           # Stock entry with damage/batch/photo
-│   ├── confirm-entry.tsx        # Confirmation with offline support
-│   ├── checkout.tsx             # Session checkout & variance report
-│   ├── sync-settings.tsx        # Sync configuration
-│   ├── supervisor/
-│   │   └── verifications.tsx    # Verification workflow
-│   └── admin/
-│       ├── users.tsx            # User management
-│       └── audit-logs.tsx       # Audit log viewer
-├── components/
-│   ├── OfflineBanner.tsx        # Offline sync indicator
-│   └── Themed.tsx               # Theme components
+├── app/                    # Expo Router screens
+│   ├── _layout.tsx         # Root layout
+│   ├── index.tsx           # Welcome screen
+│   ├── login.tsx           # Login/Register
+│   ├── dashboard.tsx       # Main dashboard (upgraded)
+│   ├── analytics.tsx       # Analytics & insights (new)
+│   ├── reports.tsx         # Reports & export (new)
+│   ├── create-session.tsx  # New session wizard
+│   ├── sessions.tsx        # Session list (upgraded)
+│   ├── scan.tsx            # Item search & scan
+│   ├── item-detail.tsx     # Item details
+│   ├── entry-form.tsx      # Stock entry form
+│   └── confirm-entry.tsx   # Confirmation modal
+├── components/             # Reusable components
 └── lib/
-    ├── cn.ts                    # className utility
-    ├── store.ts                 # Zustand stores (Auth, Session, Users)
-    ├── types.ts                 # TypeScript types
-    ├── api.ts                   # API service for backend
-    └── sync.ts                  # Sync manager with auto-sync
+    ├── cn.ts               # className utility
+    ├── store.ts            # Zustand stores
+    └── types.ts            # TypeScript types
 ```
 
-## Demo Users
-- **Staff:** rahul/priya - Stock counting operations
-- **Supervisor:** amit - Verification and approval
-- **Admin:** admin - Full system access
-
-## Search Prefix Rules
-| Prefix | Search Mode | Example |
-|--------|-------------|---------|
-| 51     | Barcode     | 5101234567890 |
-| 52     | Barcode     | 5201234567890 |
-| 53     | Barcode     | 5301234567890 |
-| Other  | Name        | Samsung, iPhone |
-
-## Mock Items
-- Samsung Galaxy S24 Ultra (serialized, 51 prefix)
-- Apple iPhone 15 Pro Max (serialized, 52 prefix)
-- Sony WH-1000XM5 Headphones (serialized, 53 prefix)
+## Mock Data
+The app includes sample items for testing:
+- Samsung Galaxy S24 Ultra (serialized)
+- Apple iPhone 15 Pro Max (serialized)
+- Sony WH-1000XM5 Headphones (serialized)
 - LG 55" OLED TV (bundle enabled)
 - Duracell AA Batteries
 - Philips LED Bulb
 - Bosch Power Drill Kit (bundle enabled)
 - Prestige Pressure Cooker
 
-## Getting Started
-The app runs automatically on port 8081. Log in with any demo user credentials to access role-specific features.
+## Backend Setup with Ngrok
+
+### 1. Start Backend Server
+
+```bash
+cd backend
+bun install
+bun run start
+```
+
+The backend will run on `http://localhost:3000`
+
+### 2. Start Ngrok Tunnel
+
+In a new terminal:
+
+```bash
+export PATH="/home/user/.bun/bin:$PATH"
+ngrok http 3000
+```
+
+Or use the automated script:
+
+```bash
+cd backend
+bun run tunnel
+```
+
+### 3. Get Ngrok URL
+
+After ngrok starts, get the public URL:
+
+```bash
+bash backend/get-ngrok-url.sh
+```
+
+Or check the ngrok dashboard at `http://localhost:4040`
+
+### 4. Update App Configuration
+
+Update `app.json` with your ngrok URL:
+
+```json
+{
+  "expo": {
+    "extra": {
+      "apiUrl": "https://your-ngrok-url.ngrok.io"
+    }
+  }
+}
+```
+
+Or set environment variable:
+
+```bash
+export EXPO_PUBLIC_API_URL=https://your-ngrok-url.ngrok.io
+```
+
+### 5. Restart Expo App
+
+After updating the API URL, restart the Expo app to use the backend.
+
+## 🚀 Quick Start (Auto-Start Everything!)
+
+### One Command to Start Everything:
+```bash
+# Linux/Mac
+bash start-all.sh
+
+# Windows
+start-all.bat
+
+# Or use npm
+npm run start:all
+```
+
+This automatically:
+- ✅ Starts backend server
+- ✅ Starts ngrok tunnel
+- ✅ Gets ngrok URL
+- ✅ Updates app.json with ngrok URL
+- ✅ Ready to use!
+
+**See [README_AUTO_START.md](README_AUTO_START.md) for details.**
+
+## Manual Setup (Alternative)
+
+1. **Start Backend:**
+   ```bash
+   cd backend && bun run start:env
+   ```
+
+2. **Start Ngrok (in another terminal):**
+   ```bash
+   export PATH="/home/user/.bun/bin:$PATH"
+   ngrok http 3000
+   ```
+
+3. **Get Ngrok URL:**
+   ```bash
+   bash backend/get-ngrok-url.sh
+   ```
+
+4. **Update API URL** in `app.json` with your ngrok URL
+
+5. **Start Expo App:**
+   ```bash
+   bun start
+   ```
+
+## Login Credentials
+
+- **Staff 1:** `staff1` / PIN: `1234`
+- **Staff 2:** `staff2` / PIN: `5678`
+- **Supervisor:** `supervisor1` / PIN: `1111`
+- **Admin:** `admin1` / PIN: `0000`
+
+## API Client
+
+The app includes an API client at `src/lib/api.ts` that automatically uses the configured backend URL. All API calls go through this client.

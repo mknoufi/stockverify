@@ -4,6 +4,9 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
+    "start:all": "bash start-all.sh",
+    "start:backend": "bash backend/auto-start.sh",
+    "stop:backend": "bash backend/auto-stop.sh",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "DARK_MODE=class expo start --web",

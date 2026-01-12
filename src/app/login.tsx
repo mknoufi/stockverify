@@ -3,7 +3,7 @@ import { View, Text, Pressable, TextInput, KeyboardAvoidingView, Platform } from
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, useSessionStore, mockUsers } from '@/lib/store';
 import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -53,14 +53,9 @@ export default function LoginScreen() {
   const handleBiometric = async () => {
     // Biometric is simulated for demo - in production, integrate with device biometrics
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    login({
-      id: '1',
-      username: 'staff1',
-      name: 'Rahul Kumar',
-      role: 'staff',
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    }, '1234');
+    // Default to staff user for biometric
+    const defaultUser = mockUsers.find((u) => u.role === 'staff') || mockUsers[0];
+    login(defaultUser, defaultUser.pin || '1234');
     router.replace('/dashboard');
   };
 
@@ -73,16 +68,15 @@ export default function LoginScreen() {
         triggerShake();
         return;
       }
-      // Demo: any 4-digit PIN works
+      // Find user by PIN
+      const user = mockUsers.find((u) => u.pin === pin && u.isActive);
+      if (!user) {
+        setError('Invalid PIN');
+        triggerShake();
+        return;
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      login({
-        id: '1',
-        username: 'staff1',
-        name: 'Rahul Kumar',
-        role: 'staff',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      }, pin);
+      login(user, pin);
       router.replace('/dashboard');
     } else {
       if (!username || !password) {
@@ -97,21 +91,15 @@ export default function LoginScreen() {
         return;
       }
 
-      // Demo login - accept any credentials and determine role based on username
+      // Find user by username (password check simplified for demo)
+      const user = mockUsers.find((u) => u.username === username && u.isActive);
+      if (!user) {
+        setError('Invalid username or password');
+        triggerShake();
+        return;
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const role = username.toLowerCase().includes('admin')
-        ? 'admin' as const
-        : username.toLowerCase().includes('super')
-          ? 'supervisor' as const
-          : 'staff' as const;
-      login({
-        id: Date.now().toString(),
-        username,
-        name: username,
-        role,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      }, '1234');
+      login(user, user.pin || '1234');
       router.replace('/dashboard');
     }
   };
@@ -122,20 +110,17 @@ export default function LoginScreen() {
       triggerShake();
       return;
     }
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const role = username.toLowerCase().includes('admin')
-      ? 'admin' as const
-      : username.toLowerCase().includes('super')
-        ? 'supervisor' as const
-        : 'staff' as const;
-    login({
+    // Create new staff user for registration
+    const newUser = {
       id: Date.now().toString(),
       username,
       name: username,
-      role,
+      role: 'staff' as const,
       isActive: true,
-      createdAt: new Date().toISOString(),
-    }, newPin);
+      pin: newPin,
+    };
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    login(newUser, newPin);
     router.replace('/dashboard');
   };
 

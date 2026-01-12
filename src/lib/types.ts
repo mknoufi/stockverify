@@ -1,44 +1,49 @@
 // Stock Verification App Types
 
-export type UserRole = 'staff' | 'supervisor' | 'admin';
 export type LocationType = 'showroom' | 'godown';
 export type ShowroomFloor = 'ground' | 'first' | 'second';
 export type GodownArea = 'main' | 'top' | 'damage';
 export type ItemCondition = 'new' | 'aged' | 'issue';
 export type DateEntryType = 'year_only' | 'month_year' | 'full_date' | 'none';
-export type SessionStatus = 'active' | 'pending_verification' | 'verified' | 'rejected' | 'completed';
-export type EntryStatus = 'pending' | 'verified' | 'rejected' | 'recount_required';
+export type UserRole = 'staff' | 'supervisor' | 'admin';
+export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'recount';
 export type SerialStatus = 'active' | 'damaged' | 'missing';
-export type DamageCategory = 'transit' | 'handling' | 'customer_return' | 'storage' | 'unknown';
+export type DamageCategory = 'transit' | 'handling' | 'customer_return' | 'unknown';
 
 export interface User {
   id: string;
   username: string;
   name: string;
   role: UserRole;
+  pin?: string;
   isActive: boolean;
-  deviceId?: string;
-  createdAt: string;
+  assignedScope?: {
+    floors?: ShowroomFloor[];
+    areas?: GodownArea[];
+    racks?: string[];
+  };
+  deviceId?: string; // For single active device enforcement
+  lastLoginAt?: string;
 }
 
 export interface Session {
   id: string;
   userId: string;
-  userName: string;
   locationType: LocationType;
   floor?: ShowroomFloor;
   area?: GodownArea;
   rackNo: string;
   createdAt: string;
-  status: SessionStatus;
+  status: 'active' | 'submitted' | 'completed' | 'recount';
+  submittedAt?: string;
   totalScanned: number;
   totalVerified: number;
-  totalRejected: number;
-  assignedBy?: string;
+  verificationStatus?: VerificationStatus;
   verifiedBy?: string;
   verifiedAt?: string;
   rejectionReason?: string;
-  supervisorRemarks?: string;
+  recountAssignedTo?: string;
+  recountRequestedAt?: string;
 }
 
 export interface ItemVariant {
@@ -49,10 +54,11 @@ export interface ItemVariant {
 
 export interface Item {
   id: string;
-  itemCode: string;
   name: string;
+  itemCode: string; // Internal item code (excluded from public search)
   barcode: string;
-  category: string;
+  serialBarcode?: string; // Serial barcode if applicable
+  category?: string;
   subCategory?: string;
   brand?: string;
   mrp: number;
@@ -61,72 +67,31 @@ export interface Item {
   uom: string;
   isSerialized: boolean;
   isBundleEnabled?: boolean;
-  taxClassification?: string;
-  hsnCode?: string;
+  variants?: ItemVariant[]; // Same item name with different barcodes
+  taxClassification?: {
+    gstPercent?: number;
+    hsn?: string;
+  };
+  costPrice?: number; // For variance value calculation (Admin view)
   lastVerifiedDate?: string;
   lastVerifiedBy?: string;
-  variants?: ItemVariant[];
 }
 
-export interface SerialNumber {
-  serial: string;
-  status: SerialStatus;
-  damageCategory?: DamageCategory;
-  damageRemarks?: string;
-}
-
-// Batch information for items with multiple batches
-export interface BatchInfo {
-  id: string;
-  batchNo: string;
-  mfgDate?: string;
-  expiryDate?: string;
-  quantity: number;
-  damageQty: number;
-  damageCategory?: DamageCategory;
-  damageRemarks?: string;
-  photos?: string[];
-}
-
-// Damage entry for tracking damaged items
-export interface DamageEntry {
-  quantity: number;
-  category: DamageCategory;
-  remarks?: string;
-  photos?: string[];
-}
-
-// Box counting for items packed in boxes
-export interface BoxCount {
-  id: string;
-  boxNo: string; // Box number/identifier
-  quantityInBox: number; // Items count in this box
-  isPartial?: boolean; // If box is not full
-  remarks?: string;
-}
-
-// Serial number entry with status
-export interface SerialEntry {
-  id: string;
+export interface SerialNumberEntry {
   serialNumber: string;
   status: SerialStatus;
-  condition?: ItemCondition;
   damageCategory?: DamageCategory;
   damageRemarks?: string;
-  photo?: string;
 }
 
 export interface CountedEntry {
   id: string;
   sessionId: string;
   itemId: string;
-  itemCode: string;
-  itemName: string;
   itemBarcode: string;
-  systemStock: number;
   countedQty: number;
   variance: number; // negative = short, 0 = match, positive = over
-  varianceValue?: number; // MRP impact
+  varianceValue?: number; // MRP & Cost impact (Admin view)
   condition: ItemCondition;
   issueDetails?: string;
   mrp: number;
@@ -135,31 +100,21 @@ export interface CountedEntry {
   mfgDate?: string;
   expiryDateType: DateEntryType;
   expiryDate?: string;
-  serialNumbers?: SerialNumber[];
+  serialNumbers?: SerialNumberEntry[]; // Enhanced with status and damage info
   photos?: string[];
   remark?: string;
   bundleItems?: BundleItem[];
-  // New fields for enhanced tracking
-  locationInRack?: string; // Specific location within rack (shelf, bin, etc.)
-  batches?: BatchInfo[]; // Multiple batches of same item
-  damageQty?: number; // Total damage quantity
-  damageEntries?: DamageEntry[]; // Multiple damage entries with categories
-  isMultiLocation?: boolean; // Flag if item exists in multiple locations
-  previousEntryId?: string; // Link to previous entry if updating
-  // Box counting
-  boxCounts?: BoxCount[]; // Multiple boxes with counts
-  totalBoxes?: number; // Total number of boxes
-  // Enhanced serial tracking
-  serialEntries?: SerialEntry[]; // Detailed serial number entries
+  location?: string; // Location/rack details
   createdAt: string;
-  updatedAt?: string;
-  status: EntryStatus;
+  // Verification fields
+  verificationStatus: VerificationStatus;
+  submittedAt?: string;
   verifiedBy?: string;
   verifiedAt?: string;
   rejectionReason?: string;
-  recountAssignedTo?: string;
-  recountCount?: number;
-  isSynced: boolean;
+  supervisorRemarks?: string;
+  isRecount?: boolean;
+  originalEntryId?: string; // Link to original entry if this is a re-count
 }
 
 export interface BundleItem {
@@ -176,53 +131,13 @@ export interface DashboardStats {
   shortItems: number;
   overItems: number;
   matchedItems: number;
-  pendingVerification: number;
-  rejectedItems: number;
+  pendingVerifications?: number; // For Supervisor/Admin
+  activeSessions?: number; // For Supervisor/Admin
 }
 
-export interface SupervisorStats {
-  pendingSessions: number;
-  verifiedToday: number;
-  rejectedToday: number;
-  totalVariance: number;
-  staffProductivity: { userId: string; userName: string; scanned: number; accuracy: number }[];
-}
-
-export interface AdminStats {
-  totalUsers: number;
-  activeUsers: number;
-  activeSessions: number;
-  completedSessions: number;
-  totalItems: number;
-  varianceValue: number;
-}
-
-export interface AuditLog {
-  id: string;
-  action: string;
-  userId: string;
-  userName: string;
-  targetId?: string;
-  details: string;
-  timestamp: string;
-  type?: string;
-}
-
-export interface OfflineAction {
-  id: string;
-  type: 'create_entry' | 'update_entry' | 'submit_session' | 'verify_entry' | 'reject_entry';
-  payload: unknown;
-  timestamp: string;
-  isSynced: boolean;
-}
-
-export interface Notification {
-  id: string;
-  userId: string;
-  title: string;
-  message: string;
-  type: 'recount' | 'approval' | 'rejection' | 'assignment';
-  isRead: boolean;
-  relatedSessionId?: string;
-  createdAt: string;
+export interface VerificationEntry {
+  entry: CountedEntry;
+  session: Session;
+  item: Item;
+  staffName: string;
 }

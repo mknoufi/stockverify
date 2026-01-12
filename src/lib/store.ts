@@ -1,7 +1,17 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { User, Session, CountedEntry, DashboardStats, Item, Notification, AuditLog, OfflineAction, UserRole } from './types';
+import type {
+  User,
+  Session,
+  CountedEntry,
+  DashboardStats,
+  Item,
+  UserRole,
+  VerificationStatus,
+  VerificationEntry,
+} from './types';
+import * as Device from 'expo-device';
 
 interface AuthState {
   user: User | null;
@@ -10,193 +20,39 @@ interface AuthState {
   login: (user: User, pin: string) => void;
   logout: () => void;
   verifyPin: (pin: string) => boolean;
+  getCurrentUserRole: () => UserRole | null;
 }
 
 interface SessionState {
   sessions: Session[];
   currentSession: Session | null;
   entries: CountedEntry[];
-  notifications: Notification[];
-  auditLogs: AuditLog[];
-  offlineQueue: OfflineAction[];
-  createSession: (session: Omit<Session, 'id' | 'createdAt' | 'totalScanned' | 'totalVerified' | 'totalRejected'>) => Session;
+  users: User[]; // Mock users for demo
+  createSession: (session: Omit<Session, 'id' | 'createdAt' | 'totalScanned' | 'totalVerified'>) => Session;
   setCurrentSession: (session: Session | null) => void;
   updateSession: (id: string, updates: Partial<Session>) => void;
   completeSession: (id: string) => void;
-  submitForVerification: (id: string) => void;
-  addEntry: (entry: Omit<CountedEntry, 'id' | 'createdAt' | 'status' | 'isSynced'>) => CountedEntry;
+  submitSessionForVerification: (sessionId: string) => void;
+  addEntry: (entry: Omit<CountedEntry, 'id' | 'createdAt' | 'verificationStatus'>) => CountedEntry;
   updateEntry: (id: string, updates: Partial<CountedEntry>) => void;
-  verifyEntry: (id: string, supervisorId: string) => void;
-  rejectEntry: (id: string, supervisorId: string, reason: string, reassignTo?: string) => void;
+  approveEntry: (entryId: string, supervisorId: string, remarks?: string) => void;
+  rejectEntry: (entryId: string, supervisorId: string, reason: string, remarks?: string) => void;
+  requestRecount: (entryId: string, supervisorId: string, reason: string, assignToUserId: string) => void;
   getSessionEntries: (sessionId: string) => CountedEntry[];
-  getDashboardStats: (userId: string) => DashboardStats;
-  getPendingVerificationSessions: () => Session[];
-  addNotification: (notification: Omit<Notification, 'id' | 'createdAt' | 'isRead'>) => void;
-  markNotificationRead: (id: string) => void;
-  addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => void;
-  addToOfflineQueue: (action: Omit<OfflineAction, 'id' | 'timestamp' | 'isSynced'>) => void;
-  syncOfflineQueue: () => void;
-  // New functions for duplicate detection and multi-location
-  checkDuplicateEntry: (sessionId: string, itemId: string, itemBarcode: string) => CountedEntry | null;
-  getItemEntriesAcrossSessions: (itemId: string) => CountedEntry[];
+  getPendingVerifications: (supervisorId?: string) => VerificationEntry[];
+  getDashboardStats: (userId: string, userRole: UserRole) => DashboardStats;
+  getUserById: (userId: string) => User | undefined;
 }
 
-interface UserManagementState {
-  users: User[];
-  addUser: (user: Omit<User, 'id' | 'createdAt'>) => User;
-  updateUser: (id: string, updates: Partial<User>) => void;
-  deactivateUser: (id: string) => void;
-  activateUser: (id: string) => void;
-  getUsersByRole: (role: UserRole) => User[];
-}
-
-// Mock items data with full Item type
-export const mockItems: Item[] = [
-  {
-    id: '1',
-    itemCode: 'SAM-S24U-001',
-    name: 'Samsung Galaxy S24 Ultra',
-    barcode: '5101234567890',
-    category: 'Electronics',
-    subCategory: 'Mobile Phones',
-    brand: 'Samsung',
-    mrp: 134999,
-    salePrice: 129999,
-    systemStock: 15,
-    uom: 'PCS',
-    isSerialized: true,
-    taxClassification: '18%',
-    hsnCode: '8517',
-    variants: [
-      { barcode: '5101234567891', systemStock: 8, uom: 'PCS' },
-      { barcode: '5101234567892', systemStock: 5, uom: 'PCS' },
-    ],
-  },
-  {
-    id: '2',
-    itemCode: 'APL-IP15PM-001',
-    name: 'Apple iPhone 15 Pro Max',
-    barcode: '5201234567890',
-    category: 'Electronics',
-    subCategory: 'Mobile Phones',
-    brand: 'Apple',
-    mrp: 159900,
-    salePrice: 154900,
-    systemStock: 12,
-    uom: 'PCS',
-    isSerialized: true,
-    taxClassification: '18%',
-    hsnCode: '8517',
-  },
-  {
-    id: '3',
-    itemCode: 'SNY-WH1000-001',
-    name: 'Sony WH-1000XM5 Headphones',
-    barcode: '5301234567890',
-    category: 'Electronics',
-    subCategory: 'Audio',
-    brand: 'Sony',
-    mrp: 29990,
-    salePrice: 26990,
-    systemStock: 25,
-    uom: 'PCS',
-    isSerialized: true,
-    taxClassification: '18%',
-    hsnCode: '8518',
-  },
-  {
-    id: '4',
-    itemCode: 'LG-OLED55C3-001',
-    name: 'LG 55" OLED TV C3',
-    barcode: '5101234500001',
-    category: 'Electronics',
-    subCategory: 'Television',
-    brand: 'LG',
-    mrp: 139990,
-    salePrice: 129990,
-    systemStock: 5,
-    uom: 'PCS',
-    isSerialized: true,
-    isBundleEnabled: true,
-    taxClassification: '18%',
-    hsnCode: '8528',
-  },
-  {
-    id: '5',
-    itemCode: 'DUR-AA4PK-001',
-    name: 'Duracell AA Batteries 4-Pack',
-    barcode: '1001234567890',
-    category: 'Accessories',
-    subCategory: 'Batteries',
-    brand: 'Duracell',
-    mrp: 299,
-    salePrice: 249,
-    systemStock: 150,
-    uom: 'PKT',
-    isSerialized: false,
-    taxClassification: '18%',
-    hsnCode: '8506',
-  },
-  {
-    id: '6',
-    itemCode: 'PHL-LED9W-001',
-    name: 'Philips LED Bulb 9W',
-    barcode: '1001234567891',
-    category: 'Home',
-    subCategory: 'Lighting',
-    brand: 'Philips',
-    mrp: 149,
-    salePrice: 129,
-    systemStock: 200,
-    uom: 'PCS',
-    isSerialized: false,
-    taxClassification: '18%',
-    hsnCode: '8539',
-  },
-  {
-    id: '7',
-    itemCode: 'BSH-DRILL-001',
-    name: 'Bosch Power Drill Kit',
-    barcode: '5201234567891',
-    category: 'Tools',
-    subCategory: 'Power Tools',
-    brand: 'Bosch',
-    mrp: 8999,
-    salePrice: 7999,
-    systemStock: 18,
-    uom: 'SET',
-    isSerialized: true,
-    isBundleEnabled: true,
-    taxClassification: '18%',
-    hsnCode: '8467',
-  },
-  {
-    id: '8',
-    itemCode: 'PRE-PC5L-001',
-    name: 'Prestige Pressure Cooker 5L',
-    barcode: '1001234500002',
-    category: 'Home',
-    subCategory: 'Kitchen',
-    brand: 'Prestige',
-    mrp: 2499,
-    salePrice: 2199,
-    systemStock: 30,
-    uom: 'PCS',
-    isSerialized: false,
-    taxClassification: '18%',
-    hsnCode: '7615',
-  },
-];
-
-// Mock users for demo
+// Mock users data
 export const mockUsers: User[] = [
   {
     id: '1',
     username: 'staff1',
-    name: 'Rahul Kumar',
+    name: 'Rajesh Kumar',
     role: 'staff',
     isActive: true,
-    createdAt: new Date().toISOString(),
+    pin: '1234',
   },
   {
     id: '2',
@@ -204,7 +60,7 @@ export const mockUsers: User[] = [
     name: 'Priya Sharma',
     role: 'staff',
     isActive: true,
-    createdAt: new Date().toISOString(),
+    pin: '5678',
   },
   {
     id: '3',
@@ -212,15 +68,159 @@ export const mockUsers: User[] = [
     name: 'Amit Patel',
     role: 'supervisor',
     isActive: true,
-    createdAt: new Date().toISOString(),
+    pin: '1111',
+    assignedScope: {
+      floors: ['ground', 'first'],
+    },
   },
   {
     id: '4',
-    username: 'admin',
-    name: 'Lavanya Admin',
+    username: 'admin1',
+    name: 'Manager',
     role: 'admin',
     isActive: true,
-    createdAt: new Date().toISOString(),
+    pin: '0000',
+  },
+];
+
+// Mock items data with comprehensive fields
+export const mockItems: Item[] = [
+  {
+    id: '1',
+    name: 'Samsung Galaxy S24 Ultra',
+    itemCode: 'MOB-SAM-S24U-001',
+    barcode: '8801234567890',
+    serialBarcode: '5101234567890',
+    category: 'Electronics',
+    subCategory: 'Mobile Phones',
+    brand: 'Samsung',
+    mrp: 134999,
+    salePrice: 129999,
+    costPrice: 120000,
+    systemStock: 15,
+    uom: 'PCS',
+    isSerialized: true,
+    taxClassification: { gstPercent: 18, hsn: '8517' },
+    variants: [
+      { barcode: '8801234567891', systemStock: 8, uom: 'PCS' },
+      { barcode: '8801234567892', systemStock: 5, uom: 'PCS' },
+    ],
+  },
+  {
+    id: '2',
+    name: 'Apple iPhone 15 Pro Max',
+    itemCode: 'MOB-APP-IP15PM-001',
+    barcode: '1901234567890',
+    serialBarcode: '5201234567890',
+    category: 'Electronics',
+    subCategory: 'Mobile Phones',
+    brand: 'Apple',
+    mrp: 159900,
+    salePrice: 154900,
+    costPrice: 145000,
+    systemStock: 12,
+    uom: 'PCS',
+    isSerialized: true,
+    taxClassification: { gstPercent: 18, hsn: '8517' },
+  },
+  {
+    id: '3',
+    name: 'Sony WH-1000XM5 Headphones',
+    itemCode: 'AUD-SON-WH1000XM5-001',
+    barcode: '4901234567890',
+    serialBarcode: '5301234567890',
+    category: 'Electronics',
+    subCategory: 'Audio',
+    brand: 'Sony',
+    mrp: 29990,
+    salePrice: 26990,
+    costPrice: 25000,
+    systemStock: 25,
+    uom: 'PCS',
+    isSerialized: true,
+    taxClassification: { gstPercent: 18, hsn: '8518' },
+  },
+  {
+    id: '4',
+    name: 'LG 55" OLED TV C3',
+    itemCode: 'TV-LG-55OLED-C3-001',
+    barcode: '8801234500001',
+    category: 'Electronics',
+    subCategory: 'Televisions',
+    brand: 'LG',
+    mrp: 139990,
+    salePrice: 129990,
+    costPrice: 120000,
+    systemStock: 5,
+    uom: 'PCS',
+    isSerialized: true,
+    isBundleEnabled: true,
+    taxClassification: { gstPercent: 28, hsn: '8528' },
+  },
+  {
+    id: '5',
+    name: 'Duracell AA Batteries 4-Pack',
+    itemCode: 'BAT-DUR-AA4PK-001',
+    barcode: '5001234567890',
+    category: 'Electronics',
+    subCategory: 'Batteries',
+    brand: 'Duracell',
+    mrp: 299,
+    salePrice: 249,
+    costPrice: 200,
+    systemStock: 150,
+    uom: 'PKT',
+    isSerialized: false,
+    taxClassification: { gstPercent: 18, hsn: '8506' },
+  },
+  {
+    id: '6',
+    name: 'Philips LED Bulb 9W',
+    itemCode: 'LGT-PHI-LED9W-001',
+    barcode: '8901234567890',
+    category: 'Lighting',
+    subCategory: 'LED Bulbs',
+    brand: 'Philips',
+    mrp: 149,
+    salePrice: 129,
+    costPrice: 100,
+    systemStock: 200,
+    uom: 'PCS',
+    isSerialized: false,
+    taxClassification: { gstPercent: 18, hsn: '8539' },
+  },
+  {
+    id: '7',
+    name: 'Bosch Power Drill Kit',
+    itemCode: 'TLS-BOS-DRILL-001',
+    barcode: '4001234567890',
+    category: 'Tools',
+    subCategory: 'Power Tools',
+    brand: 'Bosch',
+    mrp: 8999,
+    salePrice: 7999,
+    costPrice: 7000,
+    systemStock: 18,
+    uom: 'SET',
+    isSerialized: true,
+    isBundleEnabled: true,
+    taxClassification: { gstPercent: 18, hsn: '8467' },
+  },
+  {
+    id: '8',
+    name: 'Prestige Pressure Cooker 5L',
+    itemCode: 'KIT-PRE-PC5L-001',
+    barcode: '8901234500002',
+    category: 'Kitchen',
+    subCategory: 'Cookware',
+    brand: 'Prestige',
+    mrp: 2499,
+    salePrice: 2199,
+    costPrice: 1800,
+    systemStock: 30,
+    uom: 'PCS',
+    isSerialized: false,
+    taxClassification: { gstPercent: 18, hsn: '7323' },
   },
 ];
 
@@ -230,9 +230,15 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       pin: null,
-      login: (user, pin) => set({ user, isAuthenticated: true, pin }),
+      login: async (user, pin) => {
+        // In production, get device ID for single active device enforcement
+        const deviceId = Device.modelId || 'unknown';
+        const updatedUser = { ...user, deviceId, lastLoginAt: new Date().toISOString() };
+        set({ user: updatedUser, isAuthenticated: true, pin });
+      },
       logout: () => set({ user: null, isAuthenticated: false, pin: null }),
       verifyPin: (pin) => get().pin === pin,
+      getCurrentUserRole: () => get().user?.role || null,
     }),
     {
       name: 'auth-storage',
@@ -247,10 +253,7 @@ export const useSessionStore = create<SessionState>()(
       sessions: [],
       currentSession: null,
       entries: [],
-      notifications: [],
-      auditLogs: [],
-      offlineQueue: [],
-
+      users: mockUsers,
       createSession: (sessionData) => {
         const newSession: Session = {
           ...sessionData,
@@ -258,14 +261,12 @@ export const useSessionStore = create<SessionState>()(
           createdAt: new Date().toISOString(),
           totalScanned: 0,
           totalVerified: 0,
-          totalRejected: 0,
+          status: 'active',
         };
         set((state) => ({ sessions: [...state.sessions, newSession] }));
         return newSession;
       },
-
       setCurrentSession: (session) => set({ currentSession: session }),
-
       updateSession: (id, updates) =>
         set((state) => ({
           sessions: state.sessions.map((s) => (s.id === id ? { ...s, ...updates } : s)),
@@ -274,7 +275,6 @@ export const useSessionStore = create<SessionState>()(
               ? { ...state.currentSession, ...updates }
               : state.currentSession,
         })),
-
       completeSession: (id) =>
         set((state) => ({
           sessions: state.sessions.map((s) =>
@@ -282,171 +282,173 @@ export const useSessionStore = create<SessionState>()(
           ),
           currentSession: state.currentSession?.id === id ? null : state.currentSession,
         })),
-
-      submitForVerification: (id) =>
+      submitSessionForVerification: (sessionId) => {
         set((state) => ({
           sessions: state.sessions.map((s) =>
-            s.id === id ? { ...s, status: 'pending_verification' as const } : s
+            s.id === sessionId
+              ? { ...s, status: 'submitted' as const, submittedAt: new Date().toISOString() }
+              : s
           ),
-          currentSession: state.currentSession?.id === id ? null : state.currentSession,
-        })),
-
+          entries: state.entries.map((e) =>
+            e.sessionId === sessionId && e.verificationStatus === 'pending'
+              ? { ...e, submittedAt: new Date().toISOString() }
+              : e
+          ),
+        }));
+      },
       addEntry: (entryData) => {
         const newEntry: CountedEntry = {
           ...entryData,
           id: Date.now().toString(),
           createdAt: new Date().toISOString(),
-          status: 'pending',
-          isSynced: false,
+          verificationStatus: 'pending',
         };
         set((state) => {
           const updatedEntries = [...state.entries, newEntry];
+          // Update session stats
           const sessionEntries = updatedEntries.filter((e) => e.sessionId === entryData.sessionId);
           const totalScanned = sessionEntries.length;
-          const totalVerified = sessionEntries.filter((e) => e.status === 'verified').length;
-          const totalRejected = sessionEntries.filter((e) => e.status === 'rejected').length;
+          const totalVerified = sessionEntries.filter(
+            (e) => e.verificationStatus === 'approved'
+          ).length;
           return {
             entries: updatedEntries,
             sessions: state.sessions.map((s) =>
-              s.id === entryData.sessionId ? { ...s, totalScanned, totalVerified, totalRejected } : s
+              s.id === entryData.sessionId ? { ...s, totalScanned, totalVerified } : s
             ),
             currentSession:
               state.currentSession?.id === entryData.sessionId
-                ? { ...state.currentSession, totalScanned, totalVerified, totalRejected }
+                ? { ...state.currentSession, totalScanned, totalVerified }
                 : state.currentSession,
           };
         });
         return newEntry;
       },
-
       updateEntry: (id, updates) =>
         set((state) => ({
-          entries: state.entries.map((e) => (e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e)),
+          entries: state.entries.map((e) => (e.id === id ? { ...e, ...updates } : e)),
         })),
-
-      verifyEntry: (id, supervisorId) =>
+      approveEntry: (entryId, supervisorId, remarks) => {
         set((state) => ({
           entries: state.entries.map((e) =>
-            e.id === id
-              ? { ...e, status: 'verified' as const, verifiedBy: supervisorId, verifiedAt: new Date().toISOString() }
-              : e
-          ),
-        })),
-
-      rejectEntry: (id, supervisorId, reason, reassignTo) =>
-        set((state) => {
-          const entry = state.entries.find((e) => e.id === id);
-          const updatedEntries = state.entries.map((e) =>
-            e.id === id
+            e.id === entryId
               ? {
                   ...e,
-                  status: 'recount_required' as const,
+                  verificationStatus: 'approved' as const,
                   verifiedBy: supervisorId,
-                  rejectionReason: reason,
-                  recountAssignedTo: reassignTo,
-                  recountCount: (e.recountCount ?? 0) + 1,
+                  verifiedAt: new Date().toISOString(),
+                  supervisorRemarks: remarks,
                 }
               : e
-          );
+          ),
+        }));
+      },
+      rejectEntry: (entryId, supervisorId, reason, remarks) => {
+        set((state) => ({
+          entries: state.entries.map((e) =>
+            e.id === entryId
+              ? {
+                  ...e,
+                  verificationStatus: 'rejected' as const,
+                  verifiedBy: supervisorId,
+                  verifiedAt: new Date().toISOString(),
+                  rejectionReason: reason,
+                  supervisorRemarks: remarks,
+                }
+              : e
+          ),
+        }));
+      },
+      requestRecount: (entryId, supervisorId, reason, assignToUserId) => {
+        set((state) => {
+          const originalEntry = state.entries.find((e) => e.id === entryId);
+          if (!originalEntry) return state;
 
-          // Add notification for recount if entry exists
-          if (entry && reassignTo) {
-            const notification: Notification = {
-              id: Date.now().toString(),
-              userId: reassignTo,
-              title: 'Re-count Required',
-              message: `Item ${entry.itemName} requires re-counting. Reason: ${reason}`,
-              type: 'recount',
-              isRead: false,
-              relatedSessionId: entry.sessionId,
-              createdAt: new Date().toISOString(),
-            };
-            return {
-              entries: updatedEntries,
-              notifications: [...state.notifications, notification],
-            };
-          }
-          return { entries: updatedEntries };
-        }),
+          const recountEntry: CountedEntry = {
+            ...originalEntry,
+            id: Date.now().toString(),
+            verificationStatus: 'recount' as const,
+            isRecount: true,
+            originalEntryId: entryId,
+            createdAt: new Date().toISOString(),
+          };
 
+          return {
+            entries: [
+              ...state.entries.map((e) =>
+                e.id === entryId
+                  ? {
+                      ...e,
+                      verificationStatus: 'recount' as const,
+                      verifiedBy: supervisorId,
+                      verifiedAt: new Date().toISOString(),
+                      rejectionReason: reason,
+                      recountAssignedTo: assignToUserId,
+                      recountRequestedAt: new Date().toISOString(),
+                    }
+                  : e
+              ),
+              recountEntry,
+            ],
+          };
+        });
+      },
       getSessionEntries: (sessionId) => get().entries.filter((e) => e.sessionId === sessionId),
-
-      getDashboardStats: (userId) => {
+      getPendingVerifications: (supervisorId) => {
         const state = get();
-        const userSessions = state.sessions.filter((s) => s.userId === userId);
+        const pendingEntries = state.entries.filter(
+          (e) => e.verificationStatus === 'pending' || e.verificationStatus === 'recount'
+        );
+        return pendingEntries.map((entry) => {
+          const session = state.sessions.find((s) => s.id === entry.sessionId);
+          const item = mockItems.find((i) => i.id === entry.itemId);
+          const user = state.users.find((u) => u.id === session?.userId);
+          return {
+            entry,
+            session: session!,
+            item: item!,
+            staffName: user?.name || 'Unknown',
+          };
+        });
+      },
+      getDashboardStats: (userId, userRole) => {
+        const state = get();
+        const userSessions =
+          userRole === 'admin'
+            ? state.sessions
+            : userRole === 'supervisor'
+              ? state.sessions.filter((s) => {
+                  // Filter by supervisor's assigned scope
+                  const supervisor = state.users.find((u) => u.id === userId);
+                  if (!supervisor?.assignedScope) return true;
+                  // Simplified scope check - in production, implement full scope logic
+                  return true;
+                })
+              : state.sessions.filter((s) => s.userId === userId);
+
         const userEntries = state.entries.filter((e) =>
           userSessions.some((s) => s.id === e.sessionId)
         );
-        return {
+
+        const stats: DashboardStats = {
           totalScanned: userEntries.length,
-          totalVerified: userEntries.filter((e) => e.status === 'verified').length,
+          totalVerified: userEntries.filter((e) => e.verificationStatus === 'approved').length,
           totalRacksFinished: userSessions.filter((s) => s.status === 'completed').length,
           shortItems: userEntries.filter((e) => e.variance < 0).length,
           overItems: userEntries.filter((e) => e.variance > 0).length,
           matchedItems: userEntries.filter((e) => e.variance === 0).length,
-          pendingVerification: userEntries.filter((e) => e.status === 'pending').length,
-          rejectedItems: userEntries.filter((e) => e.status === 'rejected' || e.status === 'recount_required').length,
         };
+
+        if (userRole === 'supervisor' || userRole === 'admin') {
+          stats.pendingVerifications = state.entries.filter(
+            (e) => e.verificationStatus === 'pending'
+          ).length;
+          stats.activeSessions = userSessions.filter((s) => s.status === 'active').length;
+        }
+
+        return stats;
       },
-
-      getPendingVerificationSessions: () =>
-        get().sessions.filter((s) => s.status === 'pending_verification'),
-
-      addNotification: (notificationData) => {
-        const notification: Notification = {
-          ...notificationData,
-          id: Date.now().toString(),
-          createdAt: new Date().toISOString(),
-          isRead: false,
-        };
-        set((state) => ({ notifications: [...state.notifications, notification] }));
-      },
-
-      markNotificationRead: (id) =>
-        set((state) => ({
-          notifications: state.notifications.map((n) =>
-            n.id === id ? { ...n, isRead: true } : n
-          ),
-        })),
-
-      addAuditLog: (logData) => {
-        const log: AuditLog = {
-          ...logData,
-          id: Date.now().toString(),
-          timestamp: new Date().toISOString(),
-        };
-        set((state) => ({ auditLogs: [...state.auditLogs, log] }));
-      },
-
-      addToOfflineQueue: (actionData) => {
-        const action: OfflineAction = {
-          ...actionData,
-          id: Date.now().toString(),
-          timestamp: new Date().toISOString(),
-          isSynced: false,
-        };
-        set((state) => ({ offlineQueue: [...state.offlineQueue, action] }));
-      },
-
-      syncOfflineQueue: () => {
-        // Mark all queued actions as synced
-        set((state) => ({
-          offlineQueue: state.offlineQueue.map((a) => ({ ...a, isSynced: true })),
-        }));
-      },
-
-      // Check if item already exists in current session (duplicate detection)
-      checkDuplicateEntry: (sessionId, itemId, itemBarcode) => {
-        const entries = get().entries;
-        return entries.find(
-          (e) => e.sessionId === sessionId && (e.itemId === itemId || e.itemBarcode === itemBarcode)
-        ) ?? null;
-      },
-
-      // Get all entries for an item across all sessions (multi-location tracking)
-      getItemEntriesAcrossSessions: (itemId) => {
-        return get().entries.filter((e) => e.itemId === itemId);
-      },
+      getUserById: (userId) => get().users.find((u) => u.id === userId),
     }),
     {
       name: 'session-storage',
@@ -455,80 +457,34 @@ export const useSessionStore = create<SessionState>()(
   )
 );
 
-export const useUserManagementStore = create<UserManagementState>()(
-  persist(
-    (set, get) => ({
-      users: mockUsers,
-
-      addUser: (userData) => {
-        const newUser: User = {
-          ...userData,
-          id: Date.now().toString(),
-          createdAt: new Date().toISOString(),
-        };
-        set((state) => ({ users: [...state.users, newUser] }));
-        return newUser;
-      },
-
-      updateUser: (id, updates) =>
-        set((state) => ({
-          users: state.users.map((u) => (u.id === id ? { ...u, ...updates } : u)),
-        })),
-
-      deactivateUser: (id) =>
-        set((state) => ({
-          users: state.users.map((u) => (u.id === id ? { ...u, isActive: false } : u)),
-        })),
-
-      activateUser: (id) =>
-        set((state) => ({
-          users: state.users.map((u) => (u.id === id ? { ...u, isActive: true } : u)),
-        })),
-
-      getUsersByRole: (role) => get().users.filter((u) => u.role === role),
-    }),
-    {
-      name: 'users-storage',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
-
-// Helper function to get items (from sync store if available, otherwise mock)
-// Uses dynamic import to avoid circular dependency
-export function getItems(): Item[] {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { useSyncStore } = require('./sync');
-    const syncedItems = useSyncStore.getState().items;
-    return syncedItems.length > 0 ? syncedItems : mockItems;
-  } catch {
-    return mockItems;
-  }
-}
-
-// Helper function to search items with prefix routing
+// Helper function to search items with prefix-based routing
 export function searchItems(query: string): Item[] {
   if (query.length < 3) return [];
-
-  const items = getItems();
+  
+  // Prefix-based routing: 51/52/53 → Barcode search only
   const prefix = query.substring(0, 2);
-  const lowerQuery = query.toLowerCase();
-
-  // Prefix-based routing: 51/52/53 → Barcode search only, others → name search
-  if (prefix === '51' || prefix === '52' || prefix === '53') {
-    return items.filter((item) => item.barcode.includes(query));
+  const isBarcodePrefix = prefix === '51' || prefix === '52' || prefix === '53';
+  
+  if (isBarcodePrefix) {
+    // Barcode search only (including serial barcode)
+    return mockItems.filter(
+      (item) =>
+        item.barcode.includes(query) ||
+        item.serialBarcode?.includes(query) ||
+        item.variants?.some((v) => v.barcode.includes(query))
+    );
   } else {
-    return items.filter((item) => item.name.toLowerCase().includes(lowerQuery));
+    // Item name search only (exclude item code from public search)
+    const lowerQuery = query.toLowerCase();
+    return mockItems.filter((item) => item.name.toLowerCase().includes(lowerQuery));
   }
 }
 
 export function getItemByBarcode(barcode: string): Item | undefined {
-  const items = getItems();
-  return items.find((item) => item.barcode === barcode);
-}
-
-export function getItemById(id: string): Item | undefined {
-  const items = getItems();
-  return items.find((item) => item.id === id);
+  // Check main barcode, serial barcode, and variants
+  return (
+    mockItems.find((item) => item.barcode === barcode) ||
+    mockItems.find((item) => item.serialBarcode === barcode) ||
+    mockItems.find((item) => item.variants?.some((v) => v.barcode === barcode))
+  );
 }

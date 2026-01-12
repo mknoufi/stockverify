@@ -1,0 +1,186 @@
+#!/bin/bash
+# Setup script for Stock Verify Backend
+# Creates .env.production file with all configuration
+
+echo "🚀 Setting up Stock Verify Backend Environment..."
+
+# Create .env.production file
+cat > .env.production << 'EOF'
+# Stock Verification System - Backend Production Environment
+# Lavanya Emart - Stock Verify Backend API
+
+# ============================================
+# Server Configuration
+# ============================================
+PORT=3000
+NODE_ENV=production
+HOST=0.0.0.0
+
+# ============================================
+# API Configuration
+# ============================================
+API_BASE_PATH=/api
+API_VERSION=v1
+CORS_ORIGIN=*
+
+# ============================================
+# Ngrok Configuration
+# ============================================
+NGROK_AUTH_TOKEN=
+NGROK_REGION=us
+NGROK_DOMAIN=
+
+# ============================================
+# Database Configuration (SQL Server)
+# ============================================
+DB_HOST=localhost
+DB_PORT=1433
+DB_NAME=lavanya_emart_erp
+DB_USER=stock_verify_readonly
+DB_PASSWORD=your_secure_password_here
+DB_ENCRYPT=true
+DB_TRUST_SERVER_CERTIFICATE=false
+DB_CONNECTION_TIMEOUT=30000
+DB_REQUEST_TIMEOUT=30000
+DB_POOL_MAX=10
+DB_POOL_MIN=2
+
+# ============================================
+# Authentication & Security
+# ============================================
+JWT_SECRET=your_jwt_secret_key_change_in_production
+JWT_EXPIRES_IN=8h
+PIN_ENCRYPTION_KEY=your_pin_encryption_key_change_in_production
+SESSION_SECRET=your_session_secret_change_in_production
+SESSION_MAX_AGE=28800000
+MIN_PIN_LENGTH=4
+MAX_PIN_LENGTH=6
+PIN_REQUIRE_NUMBERS=true
+
+# ============================================
+# Device Management
+# ============================================
+ENABLE_SINGLE_DEVICE=true
+REQUIRE_DEVICE_REGISTRATION=true
+DEVICE_SESSION_TIMEOUT=28800000
+
+# ============================================
+# Stock Verification Settings
+# ============================================
+MIN_SEARCH_CHARS=3
+BARCODE_PREFIXES=51,52,53
+VARIANCE_THRESHOLD=10
+ENABLE_SERIAL_TRACKING=true
+ENABLE_DAMAGE_TRACKING=true
+
+# ============================================
+# Role-Based Access Control
+# ============================================
+ENABLE_RBAC=true
+REQUIRE_VERIFICATION=true
+ENABLE_RECOUNT=true
+
+# ============================================
+# Audit & Logging
+# ============================================
+ENABLE_AUDIT_TRAIL=true
+LOG_LEVEL=info
+LOG_FILE_PATH=./logs/backend.log
+ENABLE_REQUEST_LOGGING=true
+ENABLE_ERROR_LOGGING=true
+
+# ============================================
+# Rate Limiting
+# ============================================
+ENABLE_RATE_LIMITING=true
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# ============================================
+# Caching
+# ============================================
+ENABLE_CACHE=true
+CACHE_TTL=300
+CACHE_TYPE=memory
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# ============================================
+# File Upload
+# ============================================
+MAX_FILE_SIZE=10485760
+ALLOWED_FILE_TYPES=jpg,jpeg,png,pdf
+UPLOAD_DIR=./uploads
+
+# ============================================
+# Offline & Sync
+# ============================================
+ENABLE_OFFLINE_MODE=true
+SYNC_QUEUE_SIZE=1000
+SYNC_BATCH_SIZE=50
+SYNC_INTERVAL=30000
+
+# ============================================
+# Reporting
+# ============================================
+ENABLE_REPORTS=true
+REPORT_RETENTION_DAYS=365
+REPORT_STORAGE_PATH=./reports
+ENABLE_PDF_EXPORT=true
+ENABLE_EXCEL_EXPORT=true
+
+# ============================================
+# Email Configuration
+# ============================================
+ENABLE_EMAIL=false
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=noreply@lavanyaemart.com
+
+# ============================================
+# Company Information
+# ============================================
+COMPANY_NAME=Lavanya Emart
+COMPANY_ADDRESS=
+COMPANY_PHONE=
+COMPANY_EMAIL=support@lavanyaemart.com
+SHOWROOM_LOCATIONS=Ground Floor,First Floor,Second Floor
+GODOWN_LOCATIONS=Main Area,Top Area,Damage Area
+
+# ============================================
+# Feature Flags
+# ============================================
+ENABLE_BUNDLE_ITEMS=true
+ENABLE_MRP_EDIT=true
+ENABLE_MFG_DATE=true
+ENABLE_EXPIRY_DATE=true
+ENABLE_LOCATION_TRACKING=true
+
+# ============================================
+# Performance
+# ============================================
+REQUEST_TIMEOUT=30000
+MAX_CONCURRENT_REQUESTS=100
+REQUEST_RETRY_ATTEMPTS=3
+
+# ============================================
+# Monitoring & Health Checks
+# ============================================
+ENABLE_HEALTH_CHECK=true
+HEALTH_CHECK_INTERVAL=60000
+EOF
+
+echo "✅ Created .env.production file"
+echo ""
+echo "📝 Next steps:"
+echo "   1. Edit .env.production and update:"
+echo "      - Database credentials (DB_*)"
+echo "      - Security secrets (JWT_SECRET, PIN_ENCRYPTION_KEY, SESSION_SECRET)"
+echo "      - Ngrok auth token (NGROK_AUTH_TOKEN) if using authenticated ngrok"
+echo "   2. Start the server: bun run start"
+echo "   3. Start ngrok: export PATH=\"/home/user/.bun/bin:\$PATH\" && ngrok http 3000"
+echo ""
