@@ -33,6 +33,7 @@ import {
   Clock,
   UserCheck,
   FileSearch,
+  LayoutDashboard,
 } from 'lucide-react-native';
 import { format } from 'date-fns';
 
@@ -124,6 +125,11 @@ export default function DashboardScreen() {
     router.push('/admin/audit-logs');
   };
 
+  const handleAdminDashboard = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/admin/dashboard');
+  };
+
   const getRoleBadgeColor = () => {
     switch (userRole) {
       case 'admin': return { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' };
@@ -152,9 +158,9 @@ export default function DashboardScreen() {
 
   // Admin Quick Actions
   const adminActions: QuickAction[] = [
-    { label: 'Users', icon: Users, color: '#8B5CF6', bgColor: '#8B5CF6', onPress: handleUserManagement, primary: true },
+    { label: 'Dashboard', icon: LayoutDashboard, color: '#8B5CF6', bgColor: '#8B5CF6', onPress: handleAdminDashboard, primary: true },
+    { label: 'Users', icon: Users, color: '#10B981', bgColor: 'rgba(16, 185, 129, 0.15)', onPress: handleUserManagement },
     { label: 'Verify', icon: UserCheck, color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.15)', onPress: handleVerifications, badge: pendingVerificationSessions.length },
-    { label: 'Audit Logs', icon: FileSearch, color: '#10B981', bgColor: 'rgba(16, 185, 129, 0.15)', onPress: handleAuditLogs },
     { label: 'Reports', icon: FileText, color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.15)', onPress: handleViewReports },
   ];
 

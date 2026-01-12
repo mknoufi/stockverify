@@ -28,6 +28,13 @@ A professional stock verification and inventory audit mobile app built with Expo
 - Variance breakdown with progress bars
 - Location statistics: Showroom vs Godown
 
+### Admin Dashboard (New)
+- **Live Users Tab:** Real-time user monitoring with online status, active sessions, and last activity
+- **Live Scans Tab:** Real-time scan updates table showing time, item, quantity, variance, and staff
+- **System Monitoring Tab:** Backend connection status, CPU/Memory/Storage/API latency metrics, quick actions
+- **Logs Tab:** Application logs with level filtering (all, error, warn, info, debug), timestamp, source tracking
+- **Error Tracking Tab:** Error list with type, message, stack trace, resolution status, mark as resolved
+
 ### Reports Screen (New)
 - Summary Report: Overall performance overview
 - Variance Report: Short, over & matched items

@@ -40,6 +40,7 @@ function RootLayoutNav() {
         <Stack.Screen name="supervisor/verifications" />
         <Stack.Screen name="admin/users" />
         <Stack.Screen name="admin/audit-logs" />
+        <Stack.Screen name="admin/dashboard" />
       </Stack>
     </ThemeProvider>
   );
