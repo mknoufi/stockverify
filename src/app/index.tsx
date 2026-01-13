@@ -1,29 +1,77 @@
-import React from 'react';
-import { View, Text, Pressable, TextInput, ActivityIndicator, Image } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, Pressable, Image, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useAuthStore } from '@/lib/store';
-import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
+import * as SplashScreen from 'expo-splash-screen';
 import Animated, {
+  FadeIn,
   FadeInDown,
   FadeInUp,
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
+  withRepeat,
+  withTiming,
+  withSequence,
+  Easing,
 } from 'react-native-reanimated';
-import { Scan, ShieldCheck, BarChart3 } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { Scan, ShieldCheck, BarChart3, ArrowRight } from 'lucide-react-native';
+
+const { width, height } = Dimensions.get('window');
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function WelcomeScreen() {
   const router = useRouter();
 
+  const logoScale = useSharedValue(0.8);
+  const glowOpacity = useSharedValue(0.2);
+  const floatY = useSharedValue(0);
+
+  useEffect(() => {
+    SplashScreen.hideAsync();
+
+    logoScale.value = withSequence(
+      withTiming(1.05, { duration: 400, easing: Easing.out(Easing.exp) }),
+      withTiming(1, { duration: 200 })
+    );
+
+    glowOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.4, { duration: 2000 }),
+        withTiming(0.2, { duration: 2000 })
+      ),
+      -1,
+      true
+    );
+
+    floatY.value = withRepeat(
+      withSequence(
+        withTiming(-6, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 2500, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const logoAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: logoScale.value },
+      { translateY: floatY.value },
+    ],
+  }));
+
+  const glowAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+  }));
+
   const features = [
-    { icon: Scan, title: 'Barcode Scanning', desc: 'Quick item identification' },
-    { icon: ShieldCheck, title: 'Stock Verification', desc: 'Accurate inventory counts' },
-    { icon: BarChart3, title: 'Real-time Reports', desc: 'Track variances instantly' },
+    { icon: Scan, title: 'Smart Scanning', desc: 'Instant barcode recognition', color: '#3B82F6' },
+    { icon: ShieldCheck, title: 'Verified Counts', desc: 'Multi-level approval workflow', color: '#10B981' },
+    { icon: BarChart3, title: 'Live Analytics', desc: 'Real-time variance tracking', color: '#F59E0B' },
   ];
 
   const handleGetStarted = async () => {
@@ -32,76 +80,139 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View className="flex-1">
+    <View className="flex-1 bg-[#020617]">
       <LinearGradient
-        colors={['#0F172A', '#1E3A5F', '#0F172A']}
-        style={{ flex: 1 }}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <SafeAreaView className="flex-1">
-          <View className="flex-1 px-6 pt-12">
-            {/* Logo & Title */}
-            <Animated.View
-              entering={FadeInDown.duration(600).delay(100)}
-              className="items-center mb-12"
-            >
+        colors={['#020617', '#0c1929', '#0f172a', '#020617']}
+        locations={[0, 0.3, 0.7, 1]}
+        style={{ position: 'absolute', width, height }}
+      />
+
+      {/* Animated Glow Orbs */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            top: height * 0.1,
+            left: -width * 0.4,
+            width: width * 0.9,
+            height: width * 0.9,
+            borderRadius: width * 0.45,
+            backgroundColor: '#1d4ed8',
+          },
+          glowAnimatedStyle,
+        ]}
+      />
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            bottom: height * 0.15,
+            right: -width * 0.4,
+            width: width * 0.8,
+            height: width * 0.8,
+            borderRadius: width * 0.4,
+            backgroundColor: '#0d9488',
+          },
+          glowAnimatedStyle,
+        ]}
+      />
+
+      <SafeAreaView className="flex-1">
+        <View className="flex-1 px-6">
+          {/* Logo Section */}
+          <Animated.View
+            entering={FadeIn.duration(800).delay(200)}
+            className="items-center mt-10"
+          >
+            <Animated.View style={logoAnimatedStyle} className="items-center">
               <Image
                 source={require('../../assets/icon.png')}
-                style={{ width: 200, height: 100, resizeMode: 'contain' }}
+                style={{
+                  width: 200,
+                  height: 100,
+                  resizeMode: 'contain',
+                }}
               />
-              <Text className="text-base text-slate-400 text-center mt-4">
-                Professional Inventory Audit System
-              </Text>
             </Animated.View>
 
-            {/* Features */}
-            <Animated.View
-              entering={FadeInDown.duration(600).delay(300)}
-              className="flex-1 justify-center"
+            <Animated.Text
+              entering={FadeInDown.duration(600).delay(400)}
+              className="text-slate-500 text-sm mt-4 tracking-widest uppercase"
             >
-              {features.map((feature, index) => (
-                <Animated.View
-                  key={feature.title}
-                  entering={FadeInDown.duration(500).delay(400 + index * 100)}
-                  className="flex-row items-center bg-white/5 rounded-2xl p-4 mb-3"
-                >
-                  <View className="w-12 h-12 rounded-xl bg-blue-500/20 items-center justify-center">
-                    <feature.icon size={24} color="#3B82F6" />
-                  </View>
-                  <View className="ml-4 flex-1">
-                    <Text className="text-white font-semibold text-base">
-                      {feature.title}
-                    </Text>
-                    <Text className="text-slate-400 text-sm mt-0.5">
-                      {feature.desc}
-                    </Text>
-                  </View>
-                </Animated.View>
-              ))}
-            </Animated.View>
+              Inventory Management System
+            </Animated.Text>
+          </Animated.View>
 
-            {/* CTA Buttons */}
-            <Animated.View
-              entering={FadeInUp.duration(600).delay(700)}
-              className="pb-8"
-            >
-              <Pressable
-                onPress={handleGetStarted}
-                className="bg-blue-500 rounded-2xl py-4 items-center active:opacity-80"
+          {/* Features Section */}
+          <View className="flex-1 justify-center py-6">
+            {features.map((feature, index) => (
+              <Animated.View
+                key={feature.title}
+                entering={FadeInDown.duration(500).delay(600 + index * 120)}
               >
-                <Text className="text-white font-bold text-lg">
+                <BlurView
+                  intensity={25}
+                  tint="dark"
+                  className="rounded-2xl mb-3 overflow-hidden"
+                >
+                  <View className="flex-row items-center p-4 bg-white/[0.03] border border-white/[0.08] rounded-2xl">
+                    <View
+                      style={{ backgroundColor: `${feature.color}15` }}
+                      className="w-14 h-14 rounded-2xl items-center justify-center"
+                    >
+                      <feature.icon size={26} color={feature.color} strokeWidth={1.5} />
+                    </View>
+                    <View className="ml-4 flex-1">
+                      <Text className="text-white font-semibold text-[17px]">
+                        {feature.title}
+                      </Text>
+                      <Text className="text-slate-400 text-sm mt-1">
+                        {feature.desc}
+                      </Text>
+                    </View>
+                  </View>
+                </BlurView>
+              </Animated.View>
+            ))}
+          </View>
+
+          {/* CTA Section */}
+          <Animated.View
+            entering={FadeInUp.duration(600).delay(1000)}
+            className="pb-6"
+          >
+            <AnimatedPressable
+              onPress={handleGetStarted}
+              className="overflow-hidden rounded-2xl active:scale-[0.98]"
+              style={{ transform: [{ scale: 1 }] }}
+            >
+              <LinearGradient
+                colors={['#2563eb', '#1d4ed8']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{
+                  paddingVertical: 18,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text className="text-white font-bold text-[17px] mr-2">
                   Get Started
                 </Text>
-              </Pressable>
+                <ArrowRight size={20} color="#fff" strokeWidth={2.5} />
+              </LinearGradient>
+            </AnimatedPressable>
 
-              <Text className="text-slate-500 text-center text-sm mt-4">
-                Secure login with PIN & Biometric
+            <View className="flex-row items-center justify-center mt-5">
+              <View className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2" />
+              <Text className="text-slate-500 text-sm">
+                Secure PIN & Biometric Login
               </Text>
-            </Animated.View>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
+            </View>
+          </Animated.View>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
