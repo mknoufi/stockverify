@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, TextInput, ActivityIndicator, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -46,13 +46,11 @@ export default function WelcomeScreen() {
               entering={FadeInDown.duration(600).delay(100)}
               className="items-center mb-12"
             >
-              <View className="w-20 h-20 rounded-2xl bg-blue-500/20 items-center justify-center mb-4">
-                <Scan size={40} color="#3B82F6" strokeWidth={1.5} />
-              </View>
-              <Text className="text-3xl font-bold text-white text-center">
-                StockVerify
-              </Text>
-              <Text className="text-base text-slate-400 text-center mt-2">
+              <Image
+                source={require('../../assets/icon.png')}
+                style={{ width: 200, height: 100, resizeMode: 'contain' }}
+              />
+              <Text className="text-base text-slate-400 text-center mt-4">
                 Professional Inventory Audit System
               </Text>
             </Animated.View>
