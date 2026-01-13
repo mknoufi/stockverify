@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { useAuthStore, useSessionStore, mockUsers } from '@/lib/store';
 import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
@@ -22,7 +22,16 @@ type LoginMode = 'pin' | 'credentials';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const login = useAuthStore((s) => s.login);
+
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  };
 
   const [mode, setMode] = useState<LoginMode>('credentials');
   const [username, setUsername] = useState('');
@@ -212,7 +221,7 @@ export default function LoginScreen() {
           >
             <View className="flex-1 px-6 pt-4">
               <Pressable
-                onPress={() => router.back()}
+                onPress={handleBack}
                 className="w-10 h-10 rounded-full bg-white/10 items-center justify-center"
               >
                 <ArrowLeft size={20} color="#fff" />
