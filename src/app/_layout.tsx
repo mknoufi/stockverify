@@ -41,6 +41,21 @@ function RootLayoutNav() {
         <Stack.Screen name="admin/users" />
         <Stack.Screen name="admin/audit-logs" />
         <Stack.Screen name="admin/dashboard" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen
+          name="forgot-password"
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom'
+          }}
+        />
+        <Stack.Screen
+          name="biometric-setup"
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom'
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );

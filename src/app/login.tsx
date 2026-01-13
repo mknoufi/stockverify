@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useNavigation } from 'expo-router';
 import { useAuthStore, mockUsers } from '@/lib/store';
+import { useSettingsStore } from '@/lib/settings-store';
 import { cn } from '@/lib/cn';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -24,6 +25,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const login = useAuthStore((s) => s.login);
+  const biometricSetupShown = useSettingsStore((s) => s.biometricSetupShown);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -31,6 +33,19 @@ export default function LoginScreen() {
     } else {
       router.replace('/');
     }
+  };
+
+  // Navigate to dashboard or biometric setup based on first login
+  const navigateAfterLogin = () => {
+    if (!biometricSetupShown) {
+      router.replace('/biometric-setup');
+    } else {
+      router.replace('/dashboard');
+    }
+  };
+
+  const handleForgotPassword = () => {
+    router.push('/forgot-password');
   };
 
   const [mode, setMode] = useState<LoginMode>('credentials');
@@ -79,7 +94,7 @@ export default function LoginScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const defaultUser = mockUsers.find((u) => u.role === 'staff') || mockUsers[0];
     login(defaultUser, defaultUser.pin || '1234');
-    router.replace('/dashboard');
+    navigateAfterLogin();
   };
 
   const handleLogin = async () => {
@@ -99,7 +114,7 @@ export default function LoginScreen() {
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       login(user, pin);
-      router.replace('/dashboard');
+      navigateAfterLogin();
     } else {
       if (!username || !password) {
         setError('Please enter username and password');
@@ -122,7 +137,7 @@ export default function LoginScreen() {
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       login(user, user.pin || '1234');
-      router.replace('/dashboard');
+      navigateAfterLogin();
     }
   };
 
@@ -205,7 +220,7 @@ export default function LoginScreen() {
     };
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     login(newUser, newPin);
-    router.replace('/dashboard');
+    navigateAfterLogin();
   };
 
   const handleRegistrationBack = () => {
@@ -579,11 +594,24 @@ export default function LoginScreen() {
                   </Pressable>
                 )}
 
+                {/* Forgot Password/PIN */}
+                {!isRegistering && (
+                  <Pressable
+                    onPress={handleForgotPassword}
+                    className="mt-4"
+                  >
+                    <Text className="text-slate-400 text-center">
+                      Forgot {mode === 'credentials' ? 'Password' : 'PIN'}?{' '}
+                      <Text className="text-orange-400 font-medium">Reset</Text>
+                    </Text>
+                  </Pressable>
+                )}
+
                 {/* Toggle Register/Login */}
                 {mode === 'credentials' && (
                   <Pressable
                     onPress={() => { setIsRegistering(!isRegistering); setError(''); }}
-                    className="mt-6"
+                    className="mt-4"
                   >
                     <Text className="text-slate-400 text-center">
                       {isRegistering ? 'Already have an account? ' : "Don't have an account? "}

@@ -16,6 +16,7 @@ export interface User {
   name: string;
   role: UserRole;
   pin?: string;
+  phone?: string;
   isActive: boolean;
   assignedScope?: {
     floors?: ShowroomFloor[];
